@@ -84,7 +84,7 @@
 
 ### 遊戲進行頁（繪圖與猜題）
 
-![遊戲進行頁面](./src/gameing_wire_frame.png)
+![遊戲進行頁面](./src/gaming_wire_frame.png)
 
 ### 房間列表頁（房間名稱表頭字體縮小單行）
 
