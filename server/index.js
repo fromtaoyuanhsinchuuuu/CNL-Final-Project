@@ -21,14 +21,18 @@ let messages = {};
 let gameStates = {};
 
 io.on('connection', (socket) => {
+  console.log('New client connected:', socket.id);
   let currentRoomId = null;
   let userId = socket.id;
 
   // 傳送目前房間列表
+  console.log(`Setting up 'rooms' emit for new client ${socket.id}`);
   socket.emit('rooms', rooms);
 
   // 建立房間
+  console.log(`Setting up 'createRoom' listener for client ${socket.id}`);
   socket.on('createRoom', (roomName) => {
+    console.log(`Received createRoom from ${socket.id}: ${roomName}`);
     const newRoom = {
       id: `${Date.now()}`,
       name: roomName,
@@ -41,39 +45,61 @@ io.on('connection', (socket) => {
   });
 
   // 加入房間
+  console.log(`Setting up 'joinRoom' listener for client ${socket.id}`);
   socket.on('joinRoom', (roomId) => {
+    console.log(`Received joinRoom from ${socket.id}: ${roomId}`);
     const room = rooms.find(r => r.id === roomId);
-    if (!room) return;
+    if (!room) {
+      console.log(`Room ${roomId} not found.`);
+      return;
+    }
     currentRoomId = roomId;
     room.currentPlayers++;
     if (!players[roomId]) players[roomId] = [];
-    players[roomId].push({ id: userId, name: `User-${userId.slice(-4)}`, isOnline: true, score: 0 });
+    const newUser = { id: userId, name: `User-${userId.slice(-4)}`, isOnline: true, score: 0 };
+    players[roomId].push(newUser);
     if (!messages[roomId]) messages[roomId] = [];
     if (!gameStates[roomId]) gameStates[roomId] = null;
-    io.emit('rooms', rooms);
-    io.to(roomId).emit('players', players[roomId]);
+    console.log(`User ${socket.id} joined room ${roomId}. Current players: `, players[roomId]);
+    io.emit('rooms', rooms); // 廣播房間列表更新
+    io.to(roomId).emit('players', players[roomId]); // 廣播房間玩家列表更新
     socket.join(roomId);
-    socket.emit('players', players[roomId]);
+    // 新加入的玩家也需要收到當前的訊息和遊戲狀態
     socket.emit('messages', messages[roomId]);
     socket.emit('gameState', gameStates[roomId]);
+    
+    // 向發起請求的客戶端發送成功加入房間的確認事件
+    console.log(`Emitting roomJoined to client ${socket.id} with room data:`, room);
+    socket.emit('roomJoined', room);
   });
 
   // 離開房間
+  console.log(`Setting up 'leaveRoom' listener for client ${socket.id}`);
   socket.on('leaveRoom', () => {
-    if (!currentRoomId) return;
-    const room = rooms.find(r => r.id === currentRoomId);
+    console.log(`Received leaveRoom from ${socket.id}`);
+    const roomIdToLeave = currentRoomId; // Store before setting to null
+    if (!roomIdToLeave) return;
+
+    const room = rooms.find(r => r.id === roomIdToLeave);
     if (room) {
       room.currentPlayers = Math.max(0, room.currentPlayers - 1);
-      players[currentRoomId] = (players[currentRoomId] || []).filter(p => p.id !== userId);
-      io.to(currentRoomId).emit('players', players[currentRoomId]);
-      io.emit('rooms', rooms);
+      players[roomIdToLeave] = (players[roomIdToLeave] || []).filter(p => p.id !== userId);
+      console.log(`User ${socket.id} left room ${roomIdToLeave}. Current players: `, players[roomIdToLeave]);
+      io.to(roomIdToLeave).emit('players', players[roomIdToLeave]); // 廣播更新後的玩家列表
+      io.emit('rooms', rooms); // 廣播更新後的房間列表 (人數變化)
     }
-    socket.leave(currentRoomId);
-    currentRoomId = null;
+    socket.leave(roomIdToLeave);
+    currentRoomId = null; // 更新伺服器端該 socket 的房間狀態
+
+    // 向發起請求的客戶端發送成功離開房間的確認事件
+    console.log(`Emitting leftRoom to client ${socket.id}`);
+    socket.emit('leftRoom');
   });
 
   // 發送訊息/猜題
+  console.log(`Setting up 'sendMessage' listener for client ${socket.id}`);
   socket.on('sendMessage', ({ content, isGuess }) => {
+    console.log(`Received sendMessage from ${socket.id} in room ${currentRoomId}: ${content} (isGuess: ${isGuess})`);
     if (!currentRoomId) return;
     const msg = {
       id: `msg-${Date.now()}`,
@@ -92,14 +118,16 @@ io.on('connection', (socket) => {
       const player = players[currentRoomId].find(p => p.id === userId);
       if (player) player.score = (player.score || 0) + 10;
       gameState.scores[userId] = (gameState.scores[userId] || 0) + 10;
-      io.to(currentRoomId).emit('gameState', gameState);
+      io.to(currentRoomId).emit('gameState', gameState); // 廣播遊戲狀態更新 (分數)
     }
     messages[currentRoomId].push(msg);
-    io.to(currentRoomId).emit('messages', messages[currentRoomId]);
+    io.to(currentRoomId).emit('messages', messages[currentRoomId]); // 廣播訊息列表更新
   });
 
   // 上傳畫圖
+  console.log(`Setting up 'submitDrawing' listener for client ${socket.id}`);
   socket.on('submitDrawing', (dataUrl) => {
+    console.log(`Received submitDrawing from ${socket.id} in room ${currentRoomId}: ${dataUrl.substring(0, 20)}...`);
     // 這裡可擴充儲存畫圖資料
     // 廣播給房間其他人
     if (currentRoomId) {
@@ -108,10 +136,19 @@ io.on('connection', (socket) => {
   });
 
   // 開始遊戲
+  console.log(`Setting up 'startGame' listener for client ${socket.id}`);
   socket.on('startGame', () => {
+    console.log(`Received startGame from ${socket.id} in room ${currentRoomId}`);
     if (!currentRoomId) return;
-    const word = 'apple'; // 可改成隨機題庫
+
     const playerList = players[currentRoomId] || [];
+    // 驗證是否為房主 (簡易判斷：第一個加入房間的玩家)
+    if (playerList.length === 0 || playerList[0].id !== userId) {
+      console.log(`Client ${socket.id} is not the host of room ${currentRoomId}. Cannot start game.`);
+      return; // 不是房主，不執行開始遊戲邏輯
+    }
+
+    const word = 'apple'; // 可改成隨機題庫
     const scores = {};
     playerList.forEach(p => { scores[p.id] = 0; });
     gameStates[currentRoomId] = {
@@ -129,7 +166,9 @@ io.on('connection', (socket) => {
   });
 
   // 結束回合
+  console.log(`Setting up 'endRound' listener for client ${socket.id}`);
   socket.on('endRound', () => {
+    console.log(`Received endRound from ${socket.id} in room ${currentRoomId}`);
     if (!currentRoomId) return;
     const gameState = gameStates[currentRoomId];
     if (gameState) {
@@ -140,7 +179,9 @@ io.on('connection', (socket) => {
   });
 
   // 斷線處理
+  console.log(`Setting up 'disconnect' listener for client ${socket.id}`);
   socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
     if (currentRoomId) {
       const room = rooms.find(r => r.id === currentRoomId);
       if (room) {
@@ -156,4 +197,5 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`WebSocket server running on port ${PORT}`);
+  console.log('Server is fully started and listening.'); // 新增日誌
 });

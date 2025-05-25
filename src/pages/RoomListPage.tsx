@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import RoomListItem from '../components/RoomListItem';
@@ -8,14 +8,13 @@ import { useUser } from '../contexts/UserContext';
 
 const RoomListPage: React.FC = () => {
   const { currentUser } = useUser();
-  const { rooms, joinRoom, createRoom } = useGame();
+  const { rooms, joinRoom, createRoom, currentRoom } = useGame();
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
   const navigate = useNavigate();
   
   const handleJoinRoom = (roomId: string) => {
     joinRoom(roomId);
-    navigate('/game');
   };
   
   const handleCreateRoom = (e: React.FormEvent) => {
@@ -25,9 +24,15 @@ const RoomListPage: React.FC = () => {
     createRoom(newRoomName);
     setIsCreatingRoom(false);
     setNewRoomName('');
-    navigate('/game');
   };
   
+  // 在 currentRoom 狀態更新後進行頁面跳轉
+  useEffect(() => {
+    if (currentRoom) {
+      navigate('/game');
+    }
+  }, [currentRoom, navigate]);
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       <div className="max-w-4xl mx-auto">

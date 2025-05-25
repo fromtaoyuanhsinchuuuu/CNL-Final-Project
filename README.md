@@ -83,6 +83,7 @@ This wireframe illustrates the main game screen, including the drawing canvas, g
 - Vite
 - Tailwind CSS
 - React Router
+- Socket.io (for real-time communication)
 
 ## Getting Started
 
@@ -99,52 +100,96 @@ This wireframe illustrates the main game screen, including the drawing canvas, g
    cd CNL-Final-Project
    ```
 
-2. Install dependencies
+2. Install dependencies (for both frontend and backend)
    ```bash
    npm install
-   # or
-   yarn
+   cd server
+   npm install
+   cd ..
+   # or using yarn:
+   # yarn
+   # cd server
+   # yarn
+   # cd ..
    ```
 
-3. Start the development server
+3. **Set up environment variables for frontend:**
+   Create a `.env` file in the project root directory (`CNL-Final-Project/`) and add the following line:
+   ```
+   VITE_SOCKET_URL=http://localhost:3001
+   ```
+   If you deploy your backend to a different URL, update this value accordingly.
+
+4. **Start the backend server:**
+   Open a new terminal window, navigate to the `server` directory, and run:
+   ```bash
+   cd server
+   npm start
+   # or
+   # yarn start
+   ```
+   You should see a message indicating the WebSocket server is running on port 3001.
+
+5. **Start the frontend development server:**
+   Open another terminal window, navigate to the project root directory (`CNL-Final-Project/`), and run:
    ```bash
    npm run dev
    # or
-   yarn dev
+   # yarn dev
    ```
 
-4. The browser should automatically open to the application. If not, navigate to `http://localhost:5173` (or the port shown in your terminal)
+6. The browser should automatically open to the application. If not, navigate to `http://localhost:5173` (or the port shown in your terminal).
+
+Now both your frontend and backend should be running, allowing for real-time multiplayer functionality.
 
 ### Troubleshooting
 
-If you encounter any issues with the application not displaying:
+If you encounter any issues with the application not displaying or real-time features not working:
 
 1. Clean the project and reinstall dependencies
    ```bash
-   # Remove node_modules and dist folders
+   # Remove node_modules and dist folders in both frontend and backend
    rm -rf node_modules dist
+   cd server
+   rm -rf node_modules
+   cd ..
    
    # Reinstall dependencies
    npm install
+   cd server
+   npm install
+   cd ..
    
-   # Start with force flag
+   # Start with force flag (for frontend)
    npm run dev -- --force
    ```
 
-2. Check browser console (F12) for any error messages
+2. Check browser console (F12) for any error messages.
 
-3. If port 5173 is already in use, specify a different port:
+3. Check the backend terminal for any error messages or unexpected output.
+
+4. Verify the `VITE_SOCKET_URL` in your `.env` file matches the backend server address and port.
+
+5. If port 5173 (frontend) or 3001 (backend) is already in use, specify a different port:
    ```bash
+   # For frontend:
    npm run dev -- --port 3000
+   
+   # For backend (modify server/index.js PORT or use environment variable):
+   # PORT=4000 npm start
    ```
 
 ## Project Structure
 
-- `/src` - Source code
+- `/src` - Frontend source code
   - `/components` - Reusable UI components
   - `/contexts` - React context providers
   - `/pages` - Application pages
   - `/types` - TypeScript type definitions
+- `/server` - Backend source code
+  - `index.js` - Server entry point
+  - `roomManager.js` - Room management logic
+  - `gameManager.js` - Game logic
 
 ## License
 
