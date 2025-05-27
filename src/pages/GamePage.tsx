@@ -145,19 +145,19 @@ const GamePage: React.FC = () => {
                       </p>
                     </div>
                   )}
-                  
+
                   {!isDrawingTurn && (
                     <GuessCanvas />
                   )}
 
                   {isDrawingTurn && (
-                    <DrawingCanvas 
-                      isDrawing={true} 
+                    <DrawingCanvas
+                      isDrawing={true}
                       onSubmit={submitDrawing}
                       readOnly={!isDrawingTurn}
                     />
                   )}
-                  
+
                   {!isDrawingTurn && (
                     <div className="mt-6">
                       <ChatBox
@@ -195,8 +195,7 @@ const GamePage: React.FC = () => {
         isVisible={isGameOver}
         onClose={() => {
           setShowRoundEndModal(false);
-          // TODO: currently unfunctional
-          navigate('/'); // back to lobby
+          leaveRoom();
         }}
         scores={gameState?.scores || {}}
         players={players}
