@@ -21,12 +21,13 @@ let allPlayers = [];
 let players = {};
 let messages = {};
 let gameStates = {};
+let userSocketMap = {};
 
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
   let currentRoomId = null;
-  // let userId = socket.id;
-  let userId = `user-${userIdCounter}`; // 使用簡單的自增 ID 來模擬玩家 ID
+  let userId = `user-${userIdCounter}`;
+  userSocketMap[userId] = socket.id; // 新增這行
   allPlayers.push({ id: userId, name: `User-${userIdCounter}`, isOnline: true, score: 0 });
   userIdCounter++;
 
@@ -175,6 +176,12 @@ io.on('connection', (socket) => {
     rooms.find(r => r.id === currentRoomId).status = 'playing';
     io.emit('rooms', rooms);
     io.to(currentRoomId).emit('gameState', gameStates[currentRoomId]);
+
+    // 新增：只發給 currentDrawer 一個 isDrawing 訊息
+    const drawer = playerList[0];
+    if (drawer && userSocketMap[drawer.id]) {
+      io.to(userSocketMap[drawer.id]).emit('isDrawingTurn', true);
+    }
   });
 
   // 結束回合
@@ -206,6 +213,13 @@ io.on('connection', (socket) => {
 
     // remove the player from allPlayers
     allPlayers = allPlayers.filter(p => p.id !== userId);
+    // 移除 userSocketMap
+    for (const [uid, sid] of Object.entries(userSocketMap)) {
+      if (sid === socket.id) {
+        delete userSocketMap[uid];
+        break;
+      }
+    }
     console.log(`Player ${userId} disconnected. Current players in room ${currentRoomId}:`, players[currentRoomId]);
   });
 });
