@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import DrawingCanvas from '../components/DrawingCanvas';
+import GuessCanvas from '../components/GuessCanvas';
 import ChatBox from '../components/ChatBox';
 import PlayersList from '../components/PlayersList';
 import Timer from '../components/Timer';
@@ -52,8 +53,8 @@ const GamePage: React.FC = () => {
   };
 
   // 判斷是否為房主 (簡易判斷：第一個加入房間的玩家)
-  // const isHost = players.length > 0 && currentUser?.id === players[0].id;
-  const isHost = true;
+  const isHost = players.length > 0 && currentUser?.id === players[0].id;
+  // const isHost = true;
   console.log("[DEBUG]", currentUser, players, isHost);
 
   return (
@@ -113,11 +114,17 @@ const GamePage: React.FC = () => {
                     </div>
                   )}
                   
-                  <DrawingCanvas 
-                    isDrawing={true} 
-                    onSubmit={submitDrawing}
-                    readOnly={!isDrawingTurn}
-                  />
+                  {!isDrawingTurn && (
+                    <GuessCanvas />
+                  )}
+
+                  {isDrawingTurn && (
+                    <DrawingCanvas 
+                      isDrawing={true} 
+                      onSubmit={submitDrawing}
+                      readOnly={!isDrawingTurn}
+                    />
+                  )}
                   
                   {!isDrawingTurn && (
                     <div className="mt-6">
