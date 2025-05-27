@@ -15,8 +15,8 @@ type GameContextType = {
   submitDrawing: (dataUrl: string) => void;
   currentRoom: Room | null;
   startGame: () => void;
-  endRound: () => void;
   isDrawingTurn: boolean;
+  isGameOver: boolean;
 };
 
 // Initial game state
@@ -63,6 +63,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [isDrawingTurn, setIsDrawingTurn] = useState(false);
+  const [isGameOver, setIsGameOver] = useState(false);
 
   // 初始化 socket
   useEffect(() => {
@@ -127,7 +128,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('Received isDrawingTurn update:', flag);
       setIsDrawingTurn(flag);
     });
-    
+
     // 監聽成功加入房間事件
     newSocket.on('roomJoined', (room: Room) => {
       console.log('Successfully joined room:', room);
@@ -142,11 +143,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     // ...可擴充更多事件
+    // Gameover
+    newSocket.on('gameOver', (finalState: GameState) => {
+      console.log('Game over!', finalState);
+      setGameState(finalState);
+      setIsGameOver(true);
+    });
+
 
     // set socketRef
     socketRef.current = newSocket;
 
-    return () => { 
+    return () => {
       if (socketRef.current) {
         console.log('[Client] Disconnecting socket...');
         socketRef.current.disconnect();
@@ -268,20 +276,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // End the current round
-  const endRound = () => {
-    console.log('Emitting endRound');
-    if (socketRef.current) {
-      socketRef.current.emit('endRound');
-    } else if (gameState) {
-      setGameState({
-        ...gameState,
-        isRoundOver: true,
-        correctAnswer: gameState.currentWord || undefined
-      });
-    }
-  };
-
   return (
     <GameContext.Provider value={{
       rooms,
@@ -295,8 +289,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       submitDrawing,
       currentRoom,
       startGame,
-      endRound,
-      isDrawingTurn
+      isDrawingTurn,
+      isGameOver
     }}>
       {children}
     </GameContext.Provider>

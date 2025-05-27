@@ -6,49 +6,70 @@ import ChatBox from '../components/ChatBox';
 import PlayersList from '../components/PlayersList';
 import Timer from '../components/Timer';
 import RoundEndModal from '../components/RoundEndModal';
+import GameOverModal from '../components/GameOverModal';
 import { useGame } from '../contexts/GameContext';
 import { useUser } from '../contexts/UserContext';
 
 const GamePage: React.FC = () => {
-  const { 
-    currentRoom, 
+  const {
+    currentRoom,
     gameState, // 遊戲狀態是否開始：0: waiting, 1: playing
-    players, 
-    messages, 
-    leaveRoom, 
-    sendMessage, 
+    players,
+    messages,
+    leaveRoom,
+    sendMessage,
     submitDrawing,
     isDrawingTurn,
-    startGame,
-    endRound
+    startGame
   } = useGame();
   const { currentUser } = useUser();
+  const { isGameOver } = useGame();
   const [showRoundEndModal, setShowRoundEndModal] = useState(false);
+  const [isBetweenRounds, setIsBetweenRounds] = useState(false);
   const navigate = useNavigate();
-  
+
   // Redirect if no room is selected
   useEffect(() => {
     if (!currentRoom) {
       navigate('/');
     }
   }, [currentRoom, navigate]);
-  
+
   // Show round end modal when round is over
   useEffect(() => {
     if (gameState?.isRoundOver) {
       setShowRoundEndModal(true);
+      setIsBetweenRounds(true);
+
+      // Hide modal and indicator before next round begins
+      const timeout = setTimeout(() => {
+        setShowRoundEndModal(false);
+        setIsBetweenRounds(false);
+      }, 9000); // 9 seconds before next round (game starts at 10s)
+
+      return () => clearTimeout(timeout);
     }
   }, [gameState?.isRoundOver]);
-  
+
+  // auto-hide the modal before the next round
+  useEffect(() => {
+    if (showRoundEndModal) {
+      const timeout = setTimeout(() => {
+        setShowRoundEndModal(false);
+      }, 10000); // auto close before server sends next round
+
+      return () => clearTimeout(timeout);
+    }
+  }, [showRoundEndModal]);
+
+
   const handleLeaveRoom = () => {
     leaveRoom();
     // 頁面跳轉由 GameContext 中的 leftRoom 事件處理觸發
   };
-  
+
   const handleNextRound = () => {
-    setShowRoundEndModal(false);
-    // In a real app, this would communicate with the server
-    // For now, we'll just start a new "round" locally
+    setShowRoundEndModal(false); // Just close the modal — server will advance
   };
 
   // 判斷是否為房主 (簡易判斷：第一個加入房間的玩家)
@@ -78,7 +99,7 @@ const GamePage: React.FC = () => {
                 <p className="text-gray-600 mb-6">
                   已加入玩家: {currentRoom.currentPlayers} / {currentRoom.maxPlayers}
                 </p>
-                
+
                 <div className="border-t border-gray-200 pt-6">
                   <div className="flex justify-between items-center">
                     {/* Start Game Button */}
@@ -105,6 +126,17 @@ const GamePage: React.FC = () => {
               // Game in progress
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="md:col-span-2 space-y-6">
+                  {isBetweenRounds && (
+                    <div className="fixed inset-0 bg-black bg-opacity-40 z-40 flex items-center justify-center">
+                      <div className="bg-white px-6 py-4 rounded-lg shadow-lg animate-fade-in">
+                        <p className="text-lg font-semibold text-gray-800">
+                          下一回合即將開始…
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  <Timer key={gameState.roundNumber} seconds={gameState.timeRemaining}>
+                  </Timer>
                   {isDrawingTurn && gameState.currentWord && (
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                       <p className="text-yellow-800 font-medium">
@@ -112,27 +144,27 @@ const GamePage: React.FC = () => {
                       </p>
                     </div>
                   )}
-                  
-                  <DrawingCanvas 
-                    isDrawing={true} 
+
+                  <DrawingCanvas
+                    isDrawing={true}
                     onSubmit={submitDrawing}
                     readOnly={!isDrawingTurn}
                   />
-                  
+
                   {!isDrawingTurn && (
                     <div className="mt-6">
-                      <ChatBox 
+                      <ChatBox
                         messages={messages}
                         onSendMessage={sendMessage}
                         canGuess={!isDrawingTurn}
-                        // currentScore={currentScore} // 移除未定義的 currentScore
+                      // currentScore={currentScore} // 移除未定義的 currentScore
                       />
                     </div>
                   )}
                 </div>
-                
+
                 <div className="md:col-span-1 space-y-6">
-                  <PlayersList 
+                  <PlayersList
                     players={players}
                     currentDrawerId={gameState.currentDrawer}
                   />
@@ -142,15 +174,25 @@ const GamePage: React.FC = () => {
           </>
         ) : (
           // 如果 currentRoom 為 null，顯示載入或其他提示，或直接由 useEffect 導航
-          <div>載入中...</div> 
+          <div>載入中...</div>
         )}
       </div>
-      
+
       {/* Round End Modal */}
-      <RoundEndModal 
+      <RoundEndModal
         correctAnswer={gameState?.correctAnswer || ''}
         onClose={handleNextRound}
         isVisible={showRoundEndModal}
+      />
+      <GameOverModal
+        isVisible={isGameOver}
+        onClose={() => {
+          setShowRoundEndModal(false);
+          // TODO: currently unfunctional
+          navigate('/'); // back to lobby
+        }}
+        scores={gameState?.scores || {}}
+        players={players}
       />
     </div>
   );
