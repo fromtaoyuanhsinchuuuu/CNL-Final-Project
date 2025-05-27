@@ -14,7 +14,7 @@ export default defineConfig({
   server: {
     port: 5173,
     open: true, // Automatically open browser
-    host: true, // Listen on all addresses
+    host: '0.0.0.0', // Listen on all addresses
   },
   build: {
     outDir: 'dist',

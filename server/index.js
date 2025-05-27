@@ -16,6 +16,8 @@ let rooms = [
   { id: '1', name: 'Fun Room A', currentPlayers: 0, maxPlayers: 8, status: 'waiting' },
   { id: '2', name: 'Serious Players Only B', currentPlayers: 0, maxPlayers: 8, status: 'waiting' },
 ];
+let userIdCounter = 1;
+let allPlayers = [];
 let players = {};
 let messages = {};
 let gameStates = {};
@@ -23,7 +25,14 @@ let gameStates = {};
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
   let currentRoomId = null;
-  let userId = socket.id;
+  // let userId = socket.id;
+  let userId = `user-${userIdCounter}`; // 使用簡單的自增 ID 來模擬玩家 ID
+  allPlayers.push({ id: userId, name: `User-${userIdCounter}`, isOnline: true, score: 0 });
+  userIdCounter++;
+
+  // send user ID to the client
+  // console.log(`Emitting userId to client ${socket.id}: ${userId}`);
+  // socket.emit('userId', userId);
 
   // 傳送目前房間列表
   console.log(`Setting up 'rooms' emit for new client ${socket.id}`);
@@ -67,6 +76,9 @@ io.on('connection', (socket) => {
     // 新加入的玩家也需要收到當前的訊息和遊戲狀態
     socket.emit('messages', messages[roomId]);
     socket.emit('gameState', gameStates[roomId]);
+
+    // 廣播玩家列表更新
+    socket.emit('players', players[roomId]);
     
     // 向發起請求的客戶端發送成功加入房間的確認事件
     console.log(`Emitting roomJoined to client ${socket.id} with room data:`, room);
@@ -191,11 +203,15 @@ io.on('connection', (socket) => {
         io.emit('rooms', rooms);
       }
     }
+
+    // remove the player from allPlayers
+    allPlayers = allPlayers.filter(p => p.id !== userId);
+    console.log(`Player ${userId} disconnected. Current players in room ${currentRoomId}:`, players[currentRoomId]);
   });
 });
 
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`WebSocket server running on port ${PORT}`);
   console.log('Server is fully started and listening.'); // 新增日誌
 });
