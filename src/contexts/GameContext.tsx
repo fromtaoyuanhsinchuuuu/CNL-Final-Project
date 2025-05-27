@@ -307,20 +307,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [getSocket]);
 
-  // End the current round
-  const endRound = useCallback(() => {
-    console.log('Emitting endRound');
-    if (socketRef.current) {
-      socketRef.current.emit('endRound');
-    } else if (gameState) {
-      setGameState({
-        ...gameState,
-        isRoundOver: true,
-        correctAnswer: gameState.currentWord || undefined
-      });
-    }
-  }, [getSocket]);
-
   const sendCanvasUpdate = useCallback((dataUrl: string) => {
     const socket = getSocket();
     if (socket) {
@@ -344,7 +330,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       startGame,
       isDrawingTurn,
       canvasData,
-      sendCanvasUpdate,,
+      sendCanvasUpdate,
       isGameOver
     }}>
       {children}
