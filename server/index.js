@@ -64,6 +64,9 @@ io.on('connection', (socket) => {
     if (!room) {
       console.log(`Room ${roomId} not found.`);
       return;
+    } else if (room.currentPlayers >= room.maxPlayers || room.status !== "waiting") {
+      console.log(`Room ${roomId} player exceeded.`);
+      return;
     }
     currentRoomId = roomId;
     room.currentPlayers++;

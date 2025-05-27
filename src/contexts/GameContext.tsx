@@ -58,6 +58,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { currentUser, updateUser } = useUser(); // Access currentUser from UserContext
 
   const socketRef = React.useRef<Socket | null>(null);
+  const currentRoomRef = React.useRef<Room | null>(null);
 
   const [rooms, setRooms] = useState<Room[]>(MOCK_ROOMS);
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
@@ -67,8 +68,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isDrawingTurn, setIsDrawingTurn] = useState(false);
 
   // shared canvas
-  const [canvasData, setCanvasData] = useState<string | null>(null); 
+  const [canvasData, setCanvasData] = useState<string | null>(null);
   const [isGameOver, setIsGameOver] = useState(false);
+
+  useEffect(() => {
+    currentRoomRef.current = currentRoom;
+  }, [currentRoom]);
 
   // 初始化 socket
   useEffect(() => {
@@ -116,8 +121,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // 監聽 server 廣播
       newSocket.on('rooms', (serverRooms: Room[]) => {
-        console.log('Received rooms update:', serverRooms);
         setRooms(serverRooms);
+        const current = currentRoomRef.current;
+        if (current) {
+          const updatedRoom = serverRooms.find(r => r.id === current.id);
+          if (updatedRoom) {
+            setCurrentRoom(updatedRoom);
+          } else {
+            setCurrentRoom(null);
+          }
+        }
       });
       newSocket.on('players', (serverPlayers: User[]) => {
         console.log('Received players update:', serverPlayers);
@@ -135,7 +148,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('Received isDrawingTurn update:', flag);
         setIsDrawingTurn(flag);
       });
-  
+
       // 監聽成功加入房間事件
       newSocket.on('roomJoined', (room: Room) => {
         console.log('Successfully joined room:', room);
@@ -156,18 +169,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 
       // ...可擴充更多事件
-    // Gameover
-    newSocket.on('gameOver', (finalState: GameState) => {
-      console.log('Game over!', finalState);
-      setGameState(finalState);
-      setIsGameOver(true);
-    });
+      // Gameover
+      newSocket.on('gameOver', (finalState: GameState) => {
+        console.log('Game over!', finalState);
+        setGameState(finalState);
+        setIsGameOver(true);
+      });
 
 
       // set socketRef
       socketRef.current = newSocket;
 
-      return () => { 
+      return () => {
         if (socketRef.current) {
           console.log('[Client] Disconnecting socket...');
           console.log("This is on useEffect cleanup");
