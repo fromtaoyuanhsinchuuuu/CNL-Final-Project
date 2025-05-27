@@ -22,6 +22,7 @@ let players = {};
 let messages = {};
 let gameStates = {};
 let userSocketMap = {};
+let roundTimeouts = {};
 
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
@@ -81,7 +82,7 @@ io.on('connection', (socket) => {
 
     // 廣播玩家列表更新
     socket.emit('players', players[roomId]);
-    
+
     // 向發起請求的客戶端發送成功加入房間的確認事件
     console.log(`Emitting roomJoined to client ${socket.id} with room data:`, room);
     socket.emit('roomJoined', room);
@@ -149,26 +150,65 @@ io.on('connection', (socket) => {
     }
   });
 
+  // 開始回合
+  function startRound(roomId) {
+    const state = gameStates[roomId];
+    const playerList = players[roomId];
+    if (!state || !playerList || playerList.length === 0) return;
+
+    if (state.roundNumber > state.totalRounds) {
+      // Game over
+      rooms.find(r => r.id === roomId).status = 'waiting';
+      io.emit('rooms', rooms);
+      io.to(roomId).emit('gameOver', state);
+      return;
+    }
+
+    // Choose next drawer: round robin
+    const prevDrawerIndex = (state.roundNumber + playerList.length - 2) % playerList.length;
+    const prevDrawerId = playerList[prevDrawerIndex].id;
+    const nextDrawerIndex = (state.roundNumber + playerList.length - 1) % playerList.length;
+    const nextDrawerId = playerList[nextDrawerIndex].id;
+
+    // New word each round (for now hardcoded, can randomize)
+    const word = 'banana'; // TODO: replace with word bank randomization if needed
+    const roundDuration = 20;
+
+    // Update state
+    state.currentDrawer = nextDrawerId;
+    state.currentWord = word;
+    state.timeRemaining = roundDuration;
+    state.isRoundOver = false;
+    delete state.correctAnswer;
+
+    io.to(roomId).emit('gameState', state);
+    if (userSocketMap[nextDrawerId]) {
+      io.to(userSocketMap[nextDrawerId]).emit('isDrawingTurn', true);
+    }
+    if (userSocketMap[prevDrawerId] && (prevDrawerId != nextDrawerId)) {
+      io.to(userSocketMap[prevDrawerId]).emit('isDrawingTurn', false);
+    }
+
+    // Set timeout to end round after time
+    if (roundTimeouts[roomId]) clearTimeout(roundTimeouts[roomId]);
+    roundTimeouts[roomId] = setTimeout(() => endRound(roomId), roundDuration * 1000);
+  }
+
   // 開始遊戲
-  console.log(`Setting up 'startGame' listener for client ${socket.id}`);
   socket.on('startGame', () => {
     console.log(`Received startGame from ${socket.id} in room ${currentRoomId}`);
     if (!currentRoomId) return;
 
     const playerList = players[currentRoomId] || [];
-    // 驗證是否為房主 (簡易判斷：第一個加入房間的玩家)
-    if (playerList.length === 0 || playerList[0].id !== userId) {
-      console.log(`Client ${socket.id} is not the host of room ${currentRoomId}. Cannot start game.`);
-      return; // 不是房主，不執行開始遊戲邏輯
-    }
+    if (playerList.length === 0 || playerList[0].id !== userId) return;
 
-    const word = 'apple'; // 可改成隨機題庫
     const scores = {};
     playerList.forEach(p => { scores[p.id] = 0; });
+
     gameStates[currentRoomId] = {
-      currentDrawer: playerList[0]?.id || null,
-      currentWord: word,
-      timeRemaining: 120,
+      currentDrawer: null,
+      currentWord: '',
+      timeRemaining: 0,
       roundNumber: 1,
       totalRounds: 3,
       scores,
@@ -176,27 +216,32 @@ io.on('connection', (socket) => {
     };
     rooms.find(r => r.id === currentRoomId).status = 'playing';
     io.emit('rooms', rooms);
-    io.to(currentRoomId).emit('gameState', gameStates[currentRoomId]);
 
-    // 新增：只發給 currentDrawer 一個 isDrawing 訊息
-    const drawer = playerList[0];
-    if (drawer && userSocketMap[drawer.id]) {
-      io.to(userSocketMap[drawer.id]).emit('isDrawingTurn', true);
-    }
+    startRound(currentRoomId);
   });
 
   // 結束回合
-  console.log(`Setting up 'endRound' listener for client ${socket.id}`);
-  socket.on('endRound', () => {
-    console.log(`Received endRound from ${socket.id} in room ${currentRoomId}`);
-    if (!currentRoomId) return;
-    const gameState = gameStates[currentRoomId];
-    if (gameState) {
-      gameState.isRoundOver = true;
-      gameState.correctAnswer = gameState.currentWord;
-      io.to(currentRoomId).emit('gameState', gameState);
-    }
-  });
+  function endRound(roomId) {
+    const state = gameStates[roomId];
+    if (!state || state.isRoundOver) return;
+
+    state.isRoundOver = true;
+    state.correctAnswer = state.currentWord;
+    io.to(roomId).emit('gameState', state);
+
+    // Schedule next round in 10 seconds
+    setTimeout(() => {
+      if (state.roundNumber < state.totalRounds) {
+        state.roundNumber++;
+        startRound(roomId);
+      } else {
+        // Final round just ended
+        rooms.find(r => r.id === roomId).status = 'waiting';
+        io.emit('rooms', rooms);
+        io.to(roomId).emit('gameOver', state);
+      }
+    }, 10000); // 10 seconds
+  }
 
   // 同步畫布更新
   socket.on('canvasUpdate', (dataUrl) => {

@@ -15,10 +15,10 @@ type GameContextType = {
   submitDrawing: (dataUrl: string) => void;
   currentRoom: Room | null;
   startGame: () => void;
-  endRound: () => void;
   isDrawingTurn: boolean;
   canvasData: string | null;
   sendCanvasUpdate: (dataUrl: string) => void;
+  isGameOver: boolean;
 };
 
 // Initial game state
@@ -68,6 +68,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // shared canvas
   const [canvasData, setCanvasData] = useState<string | null>(null); 
+  const [isGameOver, setIsGameOver] = useState(false);
 
   // 初始化 socket
   useEffect(() => {
@@ -134,7 +135,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('Received isDrawingTurn update:', flag);
         setIsDrawingTurn(flag);
       });
-      
+  
       // 監聽成功加入房間事件
       newSocket.on('roomJoined', (room: Room) => {
         console.log('Successfully joined room:', room);
@@ -155,6 +156,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 
       // ...可擴充更多事件
+    // Gameover
+    newSocket.on('gameOver', (finalState: GameState) => {
+      console.log('Game over!', finalState);
+      setGameState(finalState);
+      setIsGameOver(true);
+    });
+
 
       // set socketRef
       socketRef.current = newSocket;
@@ -299,20 +307,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [getSocket]);
 
-  // End the current round
-  const endRound = useCallback(() => {
-    console.log('Emitting endRound');
-    if (socketRef.current) {
-      socketRef.current.emit('endRound');
-    } else if (gameState) {
-      setGameState({
-        ...gameState,
-        isRoundOver: true,
-        correctAnswer: gameState.currentWord || undefined
-      });
-    }
-  }, [getSocket]);
-
   const sendCanvasUpdate = useCallback((dataUrl: string) => {
     const socket = getSocket();
     if (socket) {
@@ -334,10 +328,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       submitDrawing,
       currentRoom,
       startGame,
-      endRound,
       isDrawingTurn,
       canvasData,
       sendCanvasUpdate,
+      isGameOver
     }}>
       {children}
     </GameContext.Provider>
