@@ -21,18 +21,20 @@ let allPlayers = [];
 let players = {};
 let messages = {};
 let gameStates = {};
+let userSocketMap = {};
 
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
   let currentRoomId = null;
   // let userId = socket.id;
   let userId = `user-${userIdCounter}`; // 使用簡單的自增 ID 來模擬玩家 ID
+  userSocketMap[userId] = socket.id; // 新增這行
   allPlayers.push({ id: userId, name: `User-${userIdCounter}`, isOnline: true, score: 0 });
   userIdCounter++;
 
   // send user ID to the client
-  // console.log(`Emitting userId to client ${socket.id}: ${userId}`);
-  // socket.emit('userId', userId);
+  console.log(`Emitting userId to client ${socket.id}: ${userId}`);
+  socket.emit('userId', userId);
 
   // 傳送目前房間列表
   console.log(`Setting up 'rooms' emit for new client ${socket.id}`);
@@ -116,7 +118,7 @@ io.on('connection', (socket) => {
     const msg = {
       id: `msg-${Date.now()}`,
       userId,
-      userName: `User-${userId.slice(-4)}`,
+      userName: userId,
       content,
       timestamp: Date.now(),
       isGuess,
@@ -175,6 +177,12 @@ io.on('connection', (socket) => {
     rooms.find(r => r.id === currentRoomId).status = 'playing';
     io.emit('rooms', rooms);
     io.to(currentRoomId).emit('gameState', gameStates[currentRoomId]);
+
+    // 新增：只發給 currentDrawer 一個 isDrawing 訊息
+    const drawer = playerList[0];
+    if (drawer && userSocketMap[drawer.id]) {
+      io.to(userSocketMap[drawer.id]).emit('isDrawingTurn', true);
+    }
   });
 
   // 結束回合
@@ -189,6 +197,12 @@ io.on('connection', (socket) => {
       io.to(currentRoomId).emit('gameState', gameState);
     }
   });
+
+  // 同步畫布更新
+  socket.on('canvasUpdate', (dataUrl) => {
+    socket.to(currentRoomId).emit('canvasUpdate', dataUrl);
+  });
+
 
   // 斷線處理
   console.log(`Setting up 'disconnect' listener for client ${socket.id}`);
@@ -206,6 +220,13 @@ io.on('connection', (socket) => {
 
     // remove the player from allPlayers
     allPlayers = allPlayers.filter(p => p.id !== userId);
+    // 移除 userSocketMap
+    for (const [uid, sid] of Object.entries(userSocketMap)) {
+      if (sid === socket.id) {
+        delete userSocketMap[uid];
+        break;
+      }
+    }
     console.log(`Player ${userId} disconnected. Current players in room ${currentRoomId}:`, players[currentRoomId]);
   });
 });

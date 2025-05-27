@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { DrawingTool } from '../types';
 import { Eraser, Pencil, Trash2 } from 'lucide-react';
+import { useGame } from '../contexts/GameContext';
 
 type DrawingCanvasProps = {
   isDrawing: boolean;
@@ -19,6 +20,8 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   const [brushColor, setBrushColor] = useState('#000000');
   const [brushSize, setBrushSize] = useState(5);
   const [prevPoint, setPrevPoint] = useState<{ x: number, y: number } | null>(null);
+
+  const { sendCanvasUpdate } = useGame(); // Get from context
   
   // Initialize canvas context
   useEffect(() => {
@@ -59,6 +62,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   const submitDrawing = () => {
     if (!canvasRef.current || !onSubmit) return;
     const dataUrl = canvasRef.current.toDataURL();
+    sendCanvasUpdate(dataUrl);
     onSubmit(dataUrl);
   };
   
@@ -72,6 +76,8 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    submitDrawing();
   };
   
   // Draw line between two points
@@ -117,12 +123,15 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     
     drawLine(prevPoint, currentPoint);
     setPrevPoint(currentPoint);
+
+    submitDrawing();
   };
   
   const handleMouseUp = () => {
     if (!isDrawing || readOnly) return;
     setIsDrawingActive(false);
     setPrevPoint(null);
+
     submitDrawing();
   };
   

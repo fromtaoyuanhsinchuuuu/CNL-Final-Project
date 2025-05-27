@@ -17,6 +17,8 @@ type GameContextType = {
   startGame: () => void;
   endRound: () => void;
   isDrawingTurn: boolean;
+  canvasData: string | null;
+  sendCanvasUpdate: (dataUrl: string) => void;
 };
 
 // Initial game state
@@ -63,6 +65,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [isDrawingTurn, setIsDrawingTurn] = useState(false);
+
+  // shared canvas
+  const [canvasData, setCanvasData] = useState<string | null>(null); 
 
   // 初始化 socket
   useEffect(() => {
@@ -142,6 +147,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('Successfully left room.');
         setCurrentRoom(null); // 將 currentRoom 設為 null，觸發 GamePage 導回 RoomListPage
       });
+
+      // 監聽繪圖更新事件
+      newSocket.on('canvasUpdate', (dataUrl: string) => {
+        setCanvasData(dataUrl);
+      });
+
 
       // ...可擴充更多事件
 
@@ -302,6 +313,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [getSocket]);
 
+  const sendCanvasUpdate = useCallback((dataUrl: string) => {
+    const socket = getSocket();
+    if (socket) {
+      socket.emit('canvasUpdate', dataUrl);
+    }
+  }, [getSocket]);
+
+
   return (
     <GameContext.Provider value={{
       rooms,
@@ -316,7 +335,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       currentRoom,
       startGame,
       endRound,
-      isDrawingTurn
+      isDrawingTurn,
+      canvasData,
+      sendCanvasUpdate,
     }}>
       {children}
     </GameContext.Provider>
