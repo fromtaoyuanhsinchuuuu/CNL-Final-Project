@@ -52,8 +52,8 @@ const GamePage: React.FC = () => {
   };
 
   // 判斷是否為房主 (簡易判斷：第一個加入房間的玩家)
-  // const isHost = players.length > 0 && currentUser?.id === players[0].id;
-  const isHost = true;
+  const isHost = players.length > 0 && currentUser?.id === players[0].id;
+  // const isHost = true;
   console.log("[DEBUG]", currentUser, players, isHost);
 
   return (
