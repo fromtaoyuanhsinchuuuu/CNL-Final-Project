@@ -12,7 +12,7 @@ import { useUser } from '../contexts/UserContext';
 const GamePage: React.FC = () => {
   const { 
     currentRoom, 
-    gameState, 
+    gameState, // 遊戲狀態是否開始：0: waiting, 1: playing
     players, 
     messages, 
     leaveRoom, 
@@ -52,7 +52,9 @@ const GamePage: React.FC = () => {
   };
 
   // 判斷是否為房主 (簡易判斷：第一個加入房間的玩家)
-  const isHost = players.length > 0 && currentUser?.id === players[0].id;
+  // const isHost = players.length > 0 && currentUser?.id === players[0].id;
+  const isHost = true;
+  console.log("[DEBUG]", currentUser, players, isHost);
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
