@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User, Room, GameState, ChatMessage } from '../types';
 import { io, Socket } from 'socket.io-client';
 import { useUser } from './UserContext'; // Import useUser
@@ -16,6 +16,8 @@ type GameContextType = {
   currentRoom: Room | null;
   startGame: () => void;
   isDrawingTurn: boolean;
+  canvasData: string | null;
+  sendCanvasUpdate: (dataUrl: string) => void;
   isGameOver: boolean;
 };
 
@@ -63,86 +65,97 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [isDrawingTurn, setIsDrawingTurn] = useState(false);
+
+  // shared canvas
+  const [canvasData, setCanvasData] = useState<string | null>(null); 
   const [isGameOver, setIsGameOver] = useState(false);
 
   // 初始化 socket
   useEffect(() => {
 
-    if (!currentUser) {
-      console.error('No current user found, cannot initialize socket.');
-      return;
-    }
+    // if (!currentUser) {
+    //   console.error('No current user found, cannot initialize socket.');
+    //   return;
+    // }
+    const shouldConnect = !socketRef.current?.connected;
+    const shouldDisconnect = socketRef.current?.connected;
 
-    if (socketRef.current) {
-      console.log('Socket already initialized, reusing existing socket.');
-      return; // 如果已經有 socket 連線，則不重新建立
-    }
+    if (shouldConnect) {
 
-    // This automatically uses whatever host the page was loaded from
-    const newSocket = io(SOCKET_URL, {
-      // send initial user info if needed
-      // query: { userId: currentUser.userId }, // 傳送當前用戶 ID
-      // transports: ['websocket'], // 使用 WebSocket 傳輸
-      // autoConnect: false, // 不自動連接，手動控制連接時機
-    });
+      if (socketRef.current) {
+        console.log('[Client] Socket already exists, disconnecting previous instance.');
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
 
-    console.log('Attempting to connect to socket server at', SOCKET_URL);
-
-    newSocket.on('connect', () => {
-      console.log('Socket connected!', newSocket?.id);
-    });
-
-    newSocket.on('disconnect', (reason) => {
-      console.log('Socket disconnected:', reason);
-    });
-
-    newSocket.on('userId', (userId: string) => {
-      console.log('Received userId from server:', userId);
-      updateUser({
-        id: userId,
-        name: currentUser.name,
-        email: currentUser.email,
-        isOnline: true,
-        score: 0 // 初始分數，伺服器可能也會發送這個
+      // This automatically uses whatever host the page was loaded from
+      const newSocket = io(SOCKET_URL, {
+        // send initial user info if needed
+        // query: { userId: currentUser.userId }, // 傳送當前用戶 ID
+        // transports: ['websocket'], // 使用 WebSocket 傳輸
+        // autoConnect: false, // 不自動連接，手動控制連接時機
       });
-    });
 
-    // 監聽 server 廣播
-    newSocket.on('rooms', (serverRooms: Room[]) => {
-      console.log('Received rooms update:', serverRooms);
-      setRooms(serverRooms);
-    });
-    newSocket.on('players', (serverPlayers: User[]) => {
-      console.log('Received players update:', serverPlayers);
-      setPlayers(serverPlayers);
-    });
-    newSocket.on('messages', (serverMessages: ChatMessage[]) => {
-      console.log('Received messages update:', serverMessages);
-      setMessages(serverMessages);
-    });
-    newSocket.on('gameState', (serverGameState: GameState) => {
-      console.log('Received gameState update:', serverGameState);
-      setGameState(serverGameState);
-    });
-    newSocket.on('isDrawingTurn', (flag: boolean) => {
-      console.log('Received isDrawingTurn update:', flag);
-      setIsDrawingTurn(flag);
-    });
+      console.log('Attempting to connect to socket server at', SOCKET_URL);
 
-    // 監聽成功加入房間事件
-    newSocket.on('roomJoined', (room: Room) => {
-      console.log('Successfully joined room:', room);
-      setCurrentRoom(room);
-      // 這裡不進行頁面跳轉，頁面跳轉由 RoomListPage 處理
-    });
+      newSocket.on('connect', () => {
+        console.log('Socket connected!', newSocket?.id);
+      });
 
-    // 監聽成功離開房間事件
-    newSocket.on('leftRoom', () => {
-      console.log('Successfully left room.');
-      setCurrentRoom(null); // 將 currentRoom 設為 null，觸發 GamePage 導回 RoomListPage
-    });
+      newSocket.on('disconnect', (reason) => {
+        console.log('Socket disconnected:', reason);
+        socketRef.current = null;
+      });
 
-    // ...可擴充更多事件
+      newSocket.on('userId', (assignedUserId: string) => {
+        console.log('Received userId from server:', assignedUserId);
+        updateUser({
+          id: assignedUserId
+        });
+      });
+
+      // 監聽 server 廣播
+      newSocket.on('rooms', (serverRooms: Room[]) => {
+        console.log('Received rooms update:', serverRooms);
+        setRooms(serverRooms);
+      });
+      newSocket.on('players', (serverPlayers: User[]) => {
+        console.log('Received players update:', serverPlayers);
+        setPlayers(serverPlayers);
+      });
+      newSocket.on('messages', (serverMessages: ChatMessage[]) => {
+        console.log('Received messages update:', serverMessages);
+        setMessages(serverMessages);
+      });
+      newSocket.on('gameState', (serverGameState: GameState) => {
+        console.log('Received gameState update:', serverGameState);
+        setGameState(serverGameState);
+      });
+      newSocket.on('isDrawingTurn', (flag: boolean) => {
+        console.log('Received isDrawingTurn update:', flag);
+        setIsDrawingTurn(flag);
+      });
+  
+      // 監聽成功加入房間事件
+      newSocket.on('roomJoined', (room: Room) => {
+        console.log('Successfully joined room:', room);
+        setCurrentRoom(room);
+        // 這裡不進行頁面跳轉，頁面跳轉由 RoomListPage 處理
+      });
+
+      // 監聽成功離開房間事件
+      newSocket.on('leftRoom', () => {
+        console.log('Successfully left room.');
+        setCurrentRoom(null); // 將 currentRoom 設為 null，觸發 GamePage 導回 RoomListPage
+      });
+
+      // 監聽繪圖更新事件
+      newSocket.on('canvasUpdate', (dataUrl: string) => {
+        setCanvasData(dataUrl);
+      });
+
+
+      // ...可擴充更多事件
     // Gameover
     newSocket.on('gameOver', (finalState: GameState) => {
       console.log('Game over!', finalState);
@@ -151,24 +164,37 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
 
-    // set socketRef
-    socketRef.current = newSocket;
+      // set socketRef
+      socketRef.current = newSocket;
 
-    return () => {
+      return () => { 
+        if (socketRef.current) {
+          console.log('[Client] Disconnecting socket...');
+          console.log("This is on useEffect cleanup");
+          socketRef.current.disconnect();
+          socketRef.current = null;
+        }
+        // newSocket?.disconnect();
+      };
+
+    } else if (shouldDisconnect) {
+      console.log('[Client] Disconnecting socket...');
       if (socketRef.current) {
-        console.log('[Client] Disconnecting socket...');
         socketRef.current.disconnect();
         socketRef.current = null;
       }
-      // newSocket?.disconnect();
-    };
-  }, [currentUser]);
+    }
+
+  }, []); // 依賴 currentUser，當用戶登錄或登出時重新初始化 socket
+
+  const getSocket = useCallback(() => socketRef.current, []);
 
   // Join a room
-  const joinRoom = (roomId: string) => {
+  const joinRoom = useCallback((roomId: string) => {
     console.log('Emitting joinRoom', roomId);
-    if (socketRef.current) {
-      socketRef.current.emit('joinRoom', roomId);
+    const currentSocket = getSocket();
+    if (currentSocket) {
+      currentSocket.emit('joinRoom', roomId);
     } else {
       // fallback: mock
       const room = rooms.find(r => r.id === roomId);
@@ -181,13 +207,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     }
-  };
+  }, [getSocket]);
 
   // Create a new room
-  const createRoom = (roomName: string) => {
+  const createRoom = useCallback((roomName: string) => {
     console.log('Emitting createRoom', roomName);
-    if (socketRef.current) {
-      socketRef.current.emit('createRoom', roomName);
+    const currentSocket = getSocket();
+    if (currentSocket) {
+      currentSocket.emit('createRoom', roomName);
     } else {
       // fallback: mock
       const newRoom: Room = {
@@ -201,13 +228,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentRoom(newRoom);
       setPlayers([MOCK_PLAYERS[0]]);
     }
-  };
+  }, [getSocket]);
 
   // Leave current room
-  const leaveRoom = () => {
+  const leaveRoom = useCallback(() => {
     console.log('Emitting leaveRoom');
-    if (socketRef.current) {
-      socketRef.current.emit('leaveRoom');
+    const currentSocket = getSocket();
+    if (currentSocket) {
+      currentSocket.emit('leaveRoom');
     } else {
       setCurrentRoom(null);
       setPlayers([]);
@@ -215,13 +243,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setGameState(null);
       setIsDrawingTurn(false);
     }
-  };
+  }, [getSocket]);
 
   // Send a message or guess
-  const sendMessage = (content: string, isGuess = false) => {
+  const sendMessage = useCallback((content: string, isGuess = false) => {
     console.log('Emitting sendMessage', { content, isGuess });
-    if (socketRef.current) {
-      socketRef.current.emit('sendMessage', { content, isGuess });
+    const currentSocket = getSocket();
+    if (currentSocket) {
+      currentSocket.emit('sendMessage', { content, isGuess });
     } else {
       // fallback: mock
       const newMessage: ChatMessage = {
@@ -243,23 +272,25 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       }
     }
-  };
+  }, [getSocket]);
 
   // Submit drawing
-  const submitDrawing = (dataUrl: string) => {
+  const submitDrawing = useCallback((dataUrl: string) => {
     console.log('Emitting submitDrawing', dataUrl.substring(0, 20) + '...');
-    if (socketRef.current) {
-      socketRef.current.emit('submitDrawing', dataUrl);
+    const currentSocket = getSocket();
+    if (currentSocket) {
+      currentSocket.emit('submitDrawing', dataUrl);
     } else {
       console.log('Drawing submitted', dataUrl.substring(0, 20) + '...');
     }
-  };
+  }, [getSocket]);
 
   // Start the game
-  const startGame = () => {
+  const startGame = useCallback(() => {
     console.log('Emitting startGame');
-    if (socketRef.current) {
-      socketRef.current.emit('startGame');
+    const currentSocket = getSocket();
+    if (currentSocket) {
+      currentSocket.emit('startGame');
     } else {
       if (currentRoom) {
         const updatedRoom = { ...currentRoom, status: 'playing' as const };
@@ -274,7 +305,29 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsDrawingTurn(true);
       }
     }
-  };
+  }, [getSocket]);
+
+  // End the current round
+  const endRound = useCallback(() => {
+    console.log('Emitting endRound');
+    if (socketRef.current) {
+      socketRef.current.emit('endRound');
+    } else if (gameState) {
+      setGameState({
+        ...gameState,
+        isRoundOver: true,
+        correctAnswer: gameState.currentWord || undefined
+      });
+    }
+  }, [getSocket]);
+
+  const sendCanvasUpdate = useCallback((dataUrl: string) => {
+    const socket = getSocket();
+    if (socket) {
+      socket.emit('canvasUpdate', dataUrl);
+    }
+  }, [getSocket]);
+
 
   return (
     <GameContext.Provider value={{
@@ -290,6 +343,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       currentRoom,
       startGame,
       isDrawingTurn,
+      canvasData,
+      sendCanvasUpdate,,
       isGameOver
     }}>
       {children}
