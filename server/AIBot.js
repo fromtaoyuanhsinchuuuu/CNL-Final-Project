@@ -87,7 +87,14 @@ class AIBot {
 
                     // **Integration Point: Notify Game Logic**
                     // If the Express.js backend needs to know about the guess for scoring/game state:
-                    // this.io.to(this.roomId).emit('gameEvent', { type: 'botGuessed', botId: this.botId, guess: predicted_class });
+                    const predictionId = `${this.botId}-${Date.now()}`;
+                    this.io.to(this.roomId).emit('botGuessedClient', { predictionId: predictionId, botId: this.botId, guess: predicted_class });
+                    // this.gameManager.sendMessage({
+                    //     id: this.botId,
+                    //     userId: this.botId,
+                    //     content: predicted_class,
+                    //     isGuess: true,
+                    // })
                 } else {
                     // Guess a random class if the prediction is the same as the last one
                     console.log("Guessing a random class due to repeated prediction:", predicted_class);

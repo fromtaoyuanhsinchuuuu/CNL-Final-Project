@@ -38,6 +38,7 @@ module.exports = {
     if (!messagesInRooms[roomId]) {
       messagesInRooms[roomId] = [];
     }
+    console.log("Hello");
     messagesInRooms[roomId].push(message);
     io.to(roomId).emit('messages', messagesInRooms[roomId]);
   },
@@ -88,6 +89,23 @@ module.exports = {
         io.to(roomId).emit('players', playersInRooms[roomId]);
         io.emit('rooms', rooms); // Update room count for all clients
         console.log(`Player ${player.name} (${player.id}) added to room ${roomId}. Current players:`, playersInRooms[roomId].length);
+    }
+  },
+
+  removePlayerFromRoom: (roomId, userId) => {
+    if (playersInRooms[roomId]) {
+        playersInRooms[roomId] = playersInRooms[roomId].filter(p => p.id !== userId);
+        // delete playerRoomMap[userId]; // Remove from player room map
+        const room = rooms.find(r => r.id === roomId);
+        if (room) {
+            room.currentPlayers = Math.max(0, room.currentPlayers - 1);
+            if (room.currentPlayers === 0) {
+              room.status = "waiting"; // Reset room status if empty
+            }
+        }
+        io.to(roomId).emit('players', playersInRooms[roomId]);
+        io.emit('rooms', rooms); // Update room count for all clients
+        console.log(`Player ${userId} removed from room ${roomId}. Current players:`, playersInRooms[roomId].length);
     }
   },
 

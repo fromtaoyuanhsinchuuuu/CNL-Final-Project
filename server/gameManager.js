@@ -4,6 +4,7 @@ let allPlayers; // Reference to the global allPlayers array from index.js
 let userSocketMap; // Reference to the global userSocketMap from index.js
 let gameStates = {}; // Stores game state for each room: { roomId: { currentDrawer, currentWord, timeRemaining, ... } }
 let roundTimeouts = {}; // Stores timeouts for each room to end rounds
+let historyPredictions = {}; // Stores history of predictions for each bot in each room
 
 // We need access to roomManager's data
 const roomManager = require('./roomManager'); // Import roomManager here
@@ -93,6 +94,62 @@ module.exports = {
     roomManager.addMessageToRoom(currentRoomId, msg); // Let roomManager handle message storage and broadcast
   },
 
+  handleBotGuess: (predictionId, botId, guess) => {
+    console.log("[handleBotGuess] Bot guess received:", botId, guess);
+    if (historyPredictions[predictionId]) {
+      console.log(`Prediction ID ${predictionId} already processed for bot ${botId}. Ignoring duplicate.`);
+      return; // Ignore duplicate guesses
+    }
+    // console.log(`Bot ${botId} guessed: ${guess}`);
+    const currentRoomId = botManager.getRoomIdByBotId(botId);
+    // if (!currentRoom) {
+    //   console.error(`[a] No room found for bot ${botId}`);
+    //   return;
+    // }
+    // const currentRoomId = currentRoom ? currentRoom.id : null;
+    if (!currentRoomId) {
+      console.error(`No room found for bot ${botId}`);
+      return;
+    }
+    historyPredictions[predictionId] = true; // Mark this prediction as processed
+
+    const gameState = gameStates[currentRoomId];
+    if (!gameState) {
+      console.error(`No game state found for room ${currentRoomId}`);
+      return;
+    }
+
+    const msg = {
+      id: `msg-${Date.now()}`,
+      userId: botId,
+      userName: roomManager.getPlayersInRoom(currentRoomId).find(p => p.id === botId)?.name || botId, // Get player name
+      content: guess,
+      timestamp: Date.now(),
+      isGuess: true,
+      isCorrectGuess: false,
+    };
+
+    // Check if the guess is correct
+    if (gameState.currentWord && guess.toLowerCase() === gameState.currentWord.toLowerCase()) {
+      // Bot guessed correctly
+      msg.isCorrectGuess = true;
+      msg.content = `${msg.userName} guessed correctly`;
+      const playerList = roomManager.getPlayersInRoom(currentRoomId);
+      const botPlayer = playerList.find(p => p.id === botId);
+      if (botPlayer) {
+        botPlayer.score = (botPlayer.score || 0) + 10; // Update bot score
+        gameState.scores[botId] = (gameState.scores[botId] || 0) + 10; // Update game state scores
+        gameState.currentCorrects[botId] = true; // Mark this bot as having guessed correctly
+        io.to(currentRoomId).emit('gameState', gameState); // Broadcast updated game state
+        io.to(currentRoomId).emit('players', playerList); // Broadcast updated player list
+      }
+      console.log(`Bot ${botId} guessed correctly in room ${currentRoomId}`);
+    } else {
+      console.log(`Bot ${botId} guessed incorrectly in room ${currentRoomId}`);
+    }
+    roomManager.addMessageToRoom(currentRoomId, msg); // Let roomManager handle message storage and broadcast
+  },
+
   submitDrawing: (socket, userId, dataUrl) => {
     const currentRoomId = roomManager.getSocketRoomMap()[socket.id];
     // console.log(`Received submitDrawing from ${socket.id} (user: ${userId}) in room ${currentRoomId}: ${dataUrl.substring(0, 20)}...`);
@@ -143,6 +200,7 @@ module.exports = {
     io.to(currentRoomId).emit('gameState', gameStates[currentRoomId]);
 
     botManager.addRoom(currentRoomId); // Ensure the room is added to botManager
+    botManager.addBotToRoom(currentRoomId, `ai_bot_${currentRoomId}_1`);
     botManager.startAllBotsInRoom(currentRoomId); // Start all bots in the room if any
 
     // Notify the current drawer
@@ -158,6 +216,7 @@ module.exports = {
       // Game over
       roomManager.getRoomById(roomId).status = 'waiting';
       roomManager.roomUpdateBroadcast(); // Broadcast updated room list
+      botManager.removeAllBotsFromRoom(roomId); // Stop all bots in the room
       io.to(roomId).emit('gameOver', gameState);
       return;
     }
@@ -220,6 +279,7 @@ module.exports = {
       roomManager.getRoomById(roomId).status = 'waiting'; // Update room status
       // io.emit('rooms', rooms);
       roomManager.roomUpdateBroadcast(); // Broadcast updated room list
+      botManager.removeAllBotsFromRoom(roomId); // Stop all bots in the room
       io.to(roomId).emit('gameOver', gameState);
       return;
     }

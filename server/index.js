@@ -74,10 +74,10 @@ io.on('connection', (socket) => {
     botManager.processCanvasUpdate(currentRoomId, dataUrl);
   });
 
-  // socket.on('aiGuess', (dataUrl) => {
-  //   console.log(`Received aiGuess from ${socket.id} for user ${userId}: ${dataUrl.substring(0, 20)}...`);
-  //   botManager.processCanvasUpdate(socket, dataUrl);
-  // });
+  socket.on('botGuessed', ({ predictionId, botId, guess }) => {
+    console.log(`[BotGuessed] Bot ${botId} guessed: ${guess}`);
+    gameManager.handleBotGuess(predictionId, botId, guess);
+  });
 
   // Disconnect handling
   socket.on('disconnect', () => {

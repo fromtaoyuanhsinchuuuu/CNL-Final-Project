@@ -181,16 +181,22 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // aiGuess
       newSocket.on('aiGuess', ({botId, botUser, guess, confidence}) => {
         console.log(`AI (${botId}) guessed:`, guess, `with confidence: ${confidence}`);
-        const newMessage: ChatMessage = {
-          id: `msg-${Date.now()}`,
-          userId: botUser.botId, // AI player ID
-          userName: botUser.name, // AI player name
-          content: guess,
-          timestamp: Date.now(),
-          isGuess: true,
-          isCorrectGuess: false // AI guesses are not checked against the current word
-        };
-        setMessages(prev => [...prev, newMessage]);
+        // const newMessage: ChatMessage = {
+        //   id: `msg-${Date.now()}`,
+        //   userId: botUser.botId, // AI player ID
+        //   userName: botUser.name, // AI player name
+        //   content: guess,
+        //   timestamp: Date.now(),
+        //   isGuess: true,
+        //   isCorrectGuess: false // AI guesses are not checked against the current word
+        // };
+        // setMessages(prev => [...prev, newMessage]);
+      });
+
+      newSocket.on('botGuessedClient', ({predictionId, botId, guess}) => {
+        console.log('Received botGuessed:', predictionId, 'from bot', botId, 'with guess:', guess);
+        // send a message to the server
+        newSocket.emit('botGuessed', { predictionId, botId, guess });
       });
 
 

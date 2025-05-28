@@ -21,7 +21,6 @@ class AIBotManager {
         this.allPlayers = []; // Will be set by index.js
         this.userSocketMap = {}; // Will be set by index.js
 
-
         AIBotManager.instance = this; // Singleton Pattern
     }
 
@@ -107,6 +106,30 @@ class AIBotManager {
             delete this.userSocketMap[botId]; // Remove from userSocketMap
             roomManager.removePlayerFromRoom(roomId, botId); // Remove AI player from room in roomManager
         }
+    }
+
+    removeAllBotsFromRoom(roomId) {
+        console.log(`Removing all bots from room ${roomId}.`);
+        if (this.rooms[roomId]) {
+            this.stopAllBotsInRoom(roomId); // Stop all bots before removing them
+            for (const botId in this.rooms[roomId].bots) {
+                this.removeBotFromRoom(roomId, botId);
+            }
+            this.rooms[roomId].bots = {}; // Clear the bots object
+            console.log(`All bots removed from room ${roomId}.`);
+        } else {
+            console.log(`No bots found in room ${roomId}.`);
+        }
+    }
+
+    getRoomIdByBotId(botId) {
+        for (const roomId in this.rooms) {
+            if (this.rooms[roomId].bots[botId]) {
+                return roomId;
+                return this.rooms[roomId]; // Return the room object containing the bot
+            }
+        }
+        return null; // Bot not found in any room
     }
 
     startAllBotsInRoom(roomId) {
