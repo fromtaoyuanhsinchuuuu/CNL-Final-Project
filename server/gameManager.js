@@ -2,11 +2,30 @@
 let io; // Socket.IO instance
 let allPlayers; // Reference to the global allPlayers array from index.js
 let userSocketMap; // Reference to the global userSocketMap from index.js
-
 let gameStates = {}; // Stores game state for each room: { roomId: { currentDrawer, currentWord, timeRemaining, ... } }
 
 // We need access to roomManager's data
 const roomManager = require('./roomManager'); // Import roomManager here
+
+const fs = require('fs');
+const path = require('path');
+const filePath = path.join(__dirname, 'data', 'categories.txt');
+if (!fs.existsSync(filePath)) {
+  console.error(`File not found: ${filePath}`);
+  return [];
+}
+const fileContent = fs.readFileSync(filePath, 'utf-8');
+const wordbank = fileContent.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+console.log(`Loaded ${wordbank.length} words from categories.txt`);
+const getRandomProblem = () => {
+  if (wordbank.length === 0) {
+    console.error('No words available for selection.');
+    return null;
+  }
+  const randomIndex = Math.floor(Math.random() * wordbank.length);
+  return wordbank[randomIndex];
+}
+
 
 module.exports = {
   init: (socketIoInstance, globalAllPlayers, globalUserSocketMap) => {
@@ -36,7 +55,13 @@ module.exports = {
     };
 
     const gameState = gameStates[currentRoomId];
-    if (isGuess && gameState && gameState.currentWord && content.toLowerCase() === gameState.currentWord.toLowerCase()) {
+    if (isGuess && gameState.currentCorrects[userId] === true) {
+      // Prevent multiple correct guesses from the same user
+      console.log(`User ${userId} has already guessed correctly in this round.`);
+      return;
+    }
+    if (isGuess && gameState && gameState.currentWord 
+      && content.toLowerCase() === gameState.currentWord.toLowerCase()) {
       msg.isCorrectGuess = true;
 
       // Update score in gameStates and playersInRooms
@@ -46,6 +71,7 @@ module.exports = {
         player.score = (player.score || 0) + 10; // Update score in roomManager's player list
       }
       gameState.scores[userId] = (gameState.scores[userId] || 0) + 10;
+      gameState.currentCorrects[userId] = true; // Mark this user as having guessed correctly
       io.to(currentRoomId).emit('gameState', gameState); // Broadcast game state update (scores)
       io.to(currentRoomId).emit('players', playerList); // Broadcast updated player list (scores)
     }
@@ -74,8 +100,9 @@ module.exports = {
     }
 
     // You can implement more sophisticated word selection here
-    const word = 'apple';
+    const word = getRandomProblem();
     const scores = {};
+    const currentCorrects = {}; // Track correct guesses for the current round
     playerList.forEach(p => { scores[p.id] = 0; }); // Initialize scores for all players
 
     gameStates[currentRoomId] = {
@@ -85,6 +112,7 @@ module.exports = {
       roundNumber: 1,
       totalRounds: 3,
       scores,
+      currentCorrects,
       isRoundOver: false,
     };
 
@@ -92,7 +120,9 @@ module.exports = {
     const room = roomManager.getRoomById(currentRoomId);
     if (room) {
       room.status = 'playing';
-      io.emit('rooms', roomManager.rooms); // Broadcast updated room list
+
+      roomManager.roomUpdateBroadcast(); // Broadcast updated room list
+      // io.emit('rooms', roomManager.rooms); // Broadcast updated room list
     }
 
     io.to(currentRoomId).emit('gameState', gameStates[currentRoomId]);
@@ -112,6 +142,9 @@ module.exports = {
     if (gameState) {
       gameState.isRoundOver = true;
       gameState.correctAnswer = gameState.currentWord;
+      for (const userId in gameState.currentCorrects) {
+        gameState.currentCorrects[userId] = false; // Reset correct guesses for the next round
+      }
       io.to(currentRoomId).emit('gameState', gameState);
     }
   },

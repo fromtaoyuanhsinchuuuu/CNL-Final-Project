@@ -34,6 +34,7 @@ export type GameState = {
   roundNumber: number;
   totalRounds: number;
   scores: Record<string, number>;
+  currentCorrects: Record<string, boolean>;
   isRoundOver: boolean;
   correctAnswer?: string;
 };

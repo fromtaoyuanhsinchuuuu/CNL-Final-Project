@@ -47,6 +47,11 @@ module.exports = {
     socket.emit('rooms', rooms);
   },
 
+  roomUpdateBroadcast: () => {
+    console.log('Broadcasting updated rooms:', rooms);
+    io.emit('rooms', rooms); // Broadcast updated room list to all clients
+  },
+
   createRoom: (socket, roomName) => {
     console.log(`Received createRoom from ${socket.id}: ${roomName}`);
     const newRoom = {
@@ -114,12 +119,11 @@ module.exports = {
       room.currentPlayers = Math.max(0, room.currentPlayers - 1);
       playersInRooms[roomIdToLeave] = (playersInRooms[roomIdToLeave] || []).filter(p => p.id !== userId);
 
-      // If no players left, clean up the room data (optional, depends on game lifecycle)
-
       console.log(`User ${userId} left room ${roomIdToLeave}. Current players: `, playersInRooms[roomIdToLeave]);
       io.to(roomIdToLeave).emit('players', playersInRooms[roomIdToLeave]); // Broadcast updated player list
       io.emit('rooms', rooms); // Broadcast updated room list (player count)
 
+      // If no players left, clean up the room data (optional, depends on game lifecycle)
       // if (room.currentPlayers === 0) {
       //   delete playersInRooms[roomIdToLeave];
       //   delete messagesInRooms[roomIdToLeave];

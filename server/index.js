@@ -11,7 +11,6 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
-// 狀態資料（簡易記憶體版）
 // These top-level states will be managed by index.js and passed to managers as needed
 let userIdCounter = 1;
 let allPlayers = [];

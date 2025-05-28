@@ -29,6 +29,7 @@ const initialGameState: GameState = {
   roundNumber: 0,
   totalRounds: 3,
   scores: {},
+  currentCorrects: {},
   isRoundOver: false
 };
 
