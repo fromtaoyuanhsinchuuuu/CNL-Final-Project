@@ -100,47 +100,49 @@ This wireframe illustrates the main game screen, including the drawing canvas, g
    cd CNL-Final-Project
    ```
 
-2. Install dependencies (for both frontend and backend)
+2. Install dependencies
    ```bash
    npm install
+
    cd server
    npm install
-   cd ..
-   # or using yarn:
-   # yarn
-   # cd server
-   # yarn
-   # cd ..
+
+   cd ../ai-server
+   python -m pip install -r requirements.txt
+   
+   cd ../llm-server
+   python -m pip install -r requirements.txt
    ```
 
-3. **Set up environment variables for frontend:**
-   Create a `.env` file in the project root directory (`CNL-Final-Project/`) and add the following line:
-   ```
-   VITE_SOCKET_URL=http://localhost:3001
-   ```
-   If you deploy your backend to a different URL, update this value accordingly.
-
-4. **Start the backend server:**
+3. **Start the backend server:**
    Open a new terminal window, navigate to the `server` directory, and run:
    ```bash
    cd server
    npm start
-   # or
-   # yarn start
    ```
    You should see a message indicating the WebSocket server is running on port 3001.
 
-5. **Start the frontend development server:**
+4. **Start the frontend development server:**
    Open another terminal window, navigate to the project root directory (`CNL-Final-Project/`), and run:
    ```bash
    npm run dev
-   # or
-   # yarn dev
    ```
 
-6. The browser should automatically open to the application. If not, navigate to `http://localhost:5173` (or the port shown in your terminal).
+5. **Start the AI (CNN) Bot**
+   Open another terminal window, navigate to the `ai-server` directory, and run:
+   ```bash
+   cd ai-server
+   python app.py
+   ```
 
-Now both your frontend and backend should be running, allowing for real-time multiplayer functionality.
+6. **Start the LLM (Llama) Bot**
+   Open another terminal window, navigate to the `llm-server` directory, and run:
+   ```bash
+   cd llm-server
+   python app.py
+   ```
+
+7. The browser should automatically open to the application. If not, navigate to `http://localhost:5173` (or the url shown in your terminal).
 
 ### Troubleshooting
 
@@ -190,6 +192,12 @@ If you encounter any issues with the application not displaying or real-time fea
   - `index.js` - Server entry point
   - `roomManager.js` - Room management logic
   - `gameManager.js` - Game logic
+- `/ai-server` - AI bot server
+   - `app.py` - flask server with AI bot logic using CNN
+   - `quickdraw_model.h5` - Pre-trained CNN model for drawing recognition
+- `/llm-server` - LLM bot server
+   - `app.py` - flask server with LLM bot logic using Llama
+   - `finetuned` - Fine-tuned Llama model files
 
 ## License
 
