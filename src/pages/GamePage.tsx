@@ -48,27 +48,7 @@ const GamePage: React.FC = () => {
       setIsBetweenRounds(false);
       console.log(`[GamePage] Round ${gameState.roundNumber} started/resumed. Hiding modal.`);
     }
-
-      // Hide modal and indicator before next round begins
-      // const timeout = setTimeout(() => {
-      //   setShowRoundEndModal(false);
-      //   setIsBetweenRounds(false);
-      // }, 9000); // 9 seconds before next round (game starts at 10s)
-
-      // return () => clearTimeout(timeout);
-    // }
   }, [gameState?.isRoundOver]);
-
-  // auto-hide the modal before the next round
-  // useEffect(() => {
-  //   if (showRoundEndModal) {
-  //     const timeout = setTimeout(() => {
-  //       setShowRoundEndModal(false);
-  //     }, 10000); // auto close before server sends next round
-
-  //     return () => clearTimeout(timeout);
-  //   }
-  // }, [showRoundEndModal]);
 
 
   const handleLeaveRoom = () => {
@@ -78,7 +58,7 @@ const GamePage: React.FC = () => {
 
   const handleNextRound = () => {
     setShowRoundEndModal(false); // Just close the modal — server will advance
-    setIsBetweenRounds(false); // Reset between rounds state
+    // setIsBetweenRounds(false); // Reset between rounds state
   };
 
   // 判斷是否為房主 (簡易判斷：第一個加入房間的玩家)
