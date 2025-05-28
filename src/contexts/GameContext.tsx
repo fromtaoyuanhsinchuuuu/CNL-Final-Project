@@ -250,13 +250,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const currentSocket = getSocket();
     if (currentSocket) {
       currentSocket.emit('leaveRoom');
-    } else {
-      setCurrentRoom(null);
-      setPlayers([]);
-      setMessages([]);
-      setGameState(null);
-      setIsDrawingTurn(false);
     }
+    setCurrentRoom(null);
+    setPlayers([]);
+    setMessages([]);
+    setGameState(null);
+    setIsDrawingTurn(false);
+    setIsGameOver(false);
+
   }, [getSocket]);
 
   // Send a message or guess
