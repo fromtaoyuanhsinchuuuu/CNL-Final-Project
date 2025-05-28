@@ -147,9 +147,9 @@ module.exports = {
     }
 
     // Choose next drawer: round robin
-    const prevDrawerIndex = (gameState.roundNumber + playerList.length - 2) % playerList.length;
+    const prevDrawerIndex = (gameState.roundNumber + playerList.length - 1) % playerList.length;
     const prevDrawerId = playerList[prevDrawerIndex].id;
-    const nextDrawerIndex = (gameState.roundNumber + playerList.length - 1) % playerList.length;
+    const nextDrawerIndex = (gameState.roundNumber + playerList.length) % playerList.length;
     const nextDrawerId = playerList[nextDrawerIndex].id;
 
     // New word each round (for now hardcoded, can randomize)
