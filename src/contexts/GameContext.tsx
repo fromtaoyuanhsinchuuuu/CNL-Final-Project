@@ -36,17 +36,17 @@ const initialGameState: GameState = {
 
 // Mock rooms data
 const MOCK_ROOMS: Room[] = [
-  { id: '1', name: 'Fun Room A', currentPlayers: 3, maxPlayers: 8, status: 'waiting' },
-  { id: '2', name: 'Serious Players Only B', currentPlayers: 8, maxPlayers: 8, status: 'playing' },
-  { id: '3', name: 'Beginners Welcome C', currentPlayers: 1, maxPlayers: 8, status: 'waiting' },
+  { id: '1-1', name: 'Fun Room A', currentPlayers: 3, maxPlayers: 8, status: 'waiting' },
+  { id: '2-1', name: 'Serious Players Only B', currentPlayers: 8, maxPlayers: 8, status: 'playing' },
+  { id: '3-1', name: 'Beginners Welcome C', currentPlayers: 1, maxPlayers: 8, status: 'waiting' },
 ];
 
 // Mock players data
 const MOCK_PLAYERS: User[] = [
-  { id: '1', name: 'Player', email: 'user@example.com', isOnline: true, score: 20 },
-  { id: '2', name: 'Bob', email: 'bob@example.com', isOnline: true, score: 15 },
-  { id: '3', name: 'Carol', email: 'carol@example.com', isOnline: true, score: 12 },
-  { id: '4', name: 'Dave (AI)', email: 'dave@ai.com', isOnline: true, isAI: true, score: 8 },
+  { id: '1-1', name: 'Player', email: 'user@example.com', isOnline: true, score: 20 },
+  { id: '2-1', name: 'Bob', email: 'bob@example.com', isOnline: true, score: 15 },
+  { id: '3-1', name: 'Carol', email: 'carol@example.com', isOnline: true, score: 12 },
+  { id: '4-1', name: 'Dave (AI)', email: 'dave@ai.com', isOnline: true, isAI: true, score: 8 },
 ];
 
 // 使用 import.meta.env 存取 Vite 暴露的環境變數，環境變數需以 VITE_ 為前綴

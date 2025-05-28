@@ -8,7 +8,6 @@ type RoundEndModalProps = {
 
 const RoundEndModal: React.FC<RoundEndModalProps> = ({ 
   correctAnswer, 
-  onClose,
   isVisible
 }) => {
   if (!isVisible) return null;

@@ -129,6 +129,10 @@ module.exports = {
       isCorrectGuess: false,
     };
 
+    if (gameState.currentCorrects[botId]) {
+      return; // Prevent multiple correct guesses from the same bot
+    }
+
     // Check if the guess is correct
     if (gameState.currentWord && guess.toLowerCase() === gameState.currentWord.toLowerCase()) {
       // Bot guessed correctly
