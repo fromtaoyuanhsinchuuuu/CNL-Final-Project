@@ -125,6 +125,10 @@ module.exports = {
       room.currentPlayers = Math.max(0, room.currentPlayers - 1);
       playersInRooms[roomIdToLeave] = (playersInRooms[roomIdToLeave] || []).filter(p => p.id !== userId);
 
+      if (room.currentPlayers === 0) {
+        room.status = "waiting";
+      }
+
       console.log(`User ${userId} left room ${roomIdToLeave}. Current players: `, playersInRooms[roomIdToLeave]);
       io.to(roomIdToLeave).emit('players', playersInRooms[roomIdToLeave]); // Broadcast updated player list
       io.emit('rooms', rooms); // Broadcast updated room list (player count)
