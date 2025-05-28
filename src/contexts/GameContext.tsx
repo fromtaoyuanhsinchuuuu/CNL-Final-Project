@@ -117,7 +117,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       newSocket.on('userId', (assignedUserId: string) => {
         console.log('Received userId from server:', assignedUserId);
         updateUser({
-          id: assignedUserId
+          id: assignedUserId,
+          name: currentUser?.name || assignedUserId,
         });
       });
 
@@ -170,12 +171,26 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
 
-      // ...可擴充更多事件
       // Gameover
       newSocket.on('gameOver', (finalState: GameState) => {
         console.log('Game over!', finalState);
         setGameState(finalState);
         setIsGameOver(true);
+      });
+
+      // aiGuess
+      newSocket.on('aiGuess', ({botId, botUser, guess, confidence}) => {
+        console.log(`AI (${botId}) guessed:`, guess, `with confidence: ${confidence}`);
+        const newMessage: ChatMessage = {
+          id: `msg-${Date.now()}`,
+          userId: botUser.botId, // AI player ID
+          userName: botUser.name, // AI player name
+          content: guess,
+          timestamp: Date.now(),
+          isGuess: true,
+          isCorrectGuess: false // AI guesses are not checked against the current word
+        };
+        setMessages(prev => [...prev, newMessage]);
       });
 
 
@@ -292,12 +307,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Submit drawing
   const submitDrawing = useCallback((dataUrl: string) => {
-    console.log('Emitting submitDrawing', dataUrl.substring(0, 20) + '...');
+    // console.log('Emitting submitDrawing', dataUrl.substring(0, 20) + '...');
     const currentSocket = getSocket();
     if (currentSocket) {
       currentSocket.emit('submitDrawing', dataUrl);
     } else {
-      console.log('Drawing submitted', dataUrl.substring(0, 20) + '...');
+      // console.log('Drawing submitted', dataUrl.substring(0, 20) + '...');
     }
   }, [getSocket]);
 
@@ -324,9 +339,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [getSocket]);
 
   const sendCanvasUpdate = useCallback((dataUrl: string) => {
-    const socket = getSocket();
-    if (socket) {
-      socket.emit('canvasUpdate', dataUrl);
+    const currentSocket = getSocket();
+    // console.log(dataUrl);
+    if (currentSocket) {
+      currentSocket.emit('canvasUpdate', dataUrl);
     }
   }, [getSocket]);
 
