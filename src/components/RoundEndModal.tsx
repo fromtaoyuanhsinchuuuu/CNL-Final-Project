@@ -22,15 +22,6 @@ const RoundEndModal: React.FC<RoundEndModalProps> = ({
           本回合結束，正確答案是：
           <span className="font-bold text-blue-600 ml-1">{correctAnswer}</span>
         </p>
-        
-        <div className="flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-          >
-            下一回合
-          </button>
-        </div>
       </div>
     </div>
   );

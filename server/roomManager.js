@@ -33,7 +33,7 @@ module.exports = {
   getMessagesInRoom: (roomId) => {
     return messagesInRooms[roomId] || [];
   },
-
+  
   addMessageToRoom: (roomId, message) => {
     if (!messagesInRooms[roomId]) {
       messagesInRooms[roomId] = [];
@@ -41,6 +41,11 @@ module.exports = {
     messagesInRooms[roomId].push(message);
     io.to(roomId).emit('messages', messagesInRooms[roomId]);
   },
+
+  clearRoomMessage: (roomId) => {
+    messagesInRooms[roomId] = [];
+    io.to(roomId).emit('messages', messagesInRooms[roomId]);
+  }, 
 
   handlePlayerConnect: (socket, userId) => {
     console.log(`Setting up 'rooms' emit for new client ${socket.id}`);

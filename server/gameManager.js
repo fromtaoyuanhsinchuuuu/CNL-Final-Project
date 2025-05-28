@@ -64,7 +64,7 @@ module.exports = {
     if (isGuess && gameState && gameState.currentWord 
       && content.toLowerCase() === gameState.currentWord.toLowerCase()) {
       msg.isCorrectGuess = true;
-
+      msg.content = `${msg.userName} guessed correctly`;
       // Update score in gameStates and playersInRooms
       const playerList = roomManager.getPlayersInRoom(currentRoomId);
       const player = playerList.find(p => p.id === userId);
@@ -100,7 +100,9 @@ module.exports = {
       return;
     }
 
-    // You can implement more sophisticated word selection here
+    // clear room messages
+    roomManager.clearRoomMessage(currentRoomId); // Clear messages for a fresh start
+    // You can implement more sophisticated word selection here    
     const word = getRandomProblem();
     const scores = {};
     const currentCorrects = {}; // Track correct guesses for the current round
@@ -111,7 +113,7 @@ module.exports = {
       currentWord: '',
       timeRemaining: 120,
       roundNumber: 0,
-      totalRounds: 3,
+      totalRounds: 2,
       scores,
       currentCorrects,
       isRoundOver: false,
