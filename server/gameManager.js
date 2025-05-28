@@ -3,6 +3,7 @@ let io; // Socket.IO instance
 let allPlayers; // Reference to the global allPlayers array from index.js
 let userSocketMap; // Reference to the global userSocketMap from index.js
 let gameStates = {}; // Stores game state for each room: { roomId: { currentDrawer, currentWord, timeRemaining, ... } }
+let roundTimeouts = {}; // Stores timeouts for each room to end rounds
 
 // We need access to roomManager's data
 const roomManager = require('./roomManager'); // Import roomManager here
@@ -106,10 +107,10 @@ module.exports = {
     playerList.forEach(p => { scores[p.id] = 0; }); // Initialize scores for all players
 
     gameStates[currentRoomId] = {
-      currentDrawer: playerList[0]?.id || null,
-      currentWord: word,
+      currentDrawer: null,
+      currentWord: '',
       timeRemaining: 120,
-      roundNumber: 1,
+      roundNumber: 0,
       totalRounds: 3,
       scores,
       currentCorrects,
@@ -120,7 +121,6 @@ module.exports = {
     const room = roomManager.getRoomById(currentRoomId);
     if (room) {
       room.status = 'playing';
-
       roomManager.roomUpdateBroadcast(); // Broadcast updated room list
       // io.emit('rooms', roomManager.rooms); // Broadcast updated room list
     }
@@ -128,25 +128,91 @@ module.exports = {
     io.to(currentRoomId).emit('gameState', gameStates[currentRoomId]);
 
     // Notify the current drawer
-    const drawer = playerList[0];
-    if (drawer && userSocketMap[drawer.id]) {
-      io.to(userSocketMap[drawer.id]).emit('isDrawingTurn', true);
-    }
+    module.exports.startRound(currentRoomId);
   },
 
-  endRound: (socket) => {
-    const currentRoomId = roomManager.getSocketRoomMap()[socket.id];
-    console.log(`Received endRound from ${socket.id} in room ${currentRoomId}`);
-    if (!currentRoomId) return;
-    const gameState = gameStates[currentRoomId];
-    if (gameState) {
-      gameState.isRoundOver = true;
-      gameState.correctAnswer = gameState.currentWord;
-      for (const userId in gameState.currentCorrects) {
-        gameState.currentCorrects[userId] = false; // Reset correct guesses for the next round
-      }
-      io.to(currentRoomId).emit('gameState', gameState);
+  startRound: (roomId) => {
+    const gameState = gameStates[roomId];
+    const playerList = roomManager.getPlayersInRoom(roomId);
+    if (!gameState || !playerList || playerList.length === 0) return;
+
+    if (gameState.roundNumber > gameState.totalRounds) {
+      // Game over
+      roomManager.getRoomById(roomId).status = 'waiting';
+      // TODO: Handle broadcast through roomManager
+      // io.emit('rooms', rooms);
+      roomManager.roomUpdateBroadcast(); // Broadcast updated room list
+      io.to(roomId).emit('gameOver', gameState);
+      return;
     }
+
+    // Choose next drawer: round robin
+    const prevDrawerIndex = (gameState.roundNumber + playerList.length - 2) % playerList.length;
+    const prevDrawerId = playerList[prevDrawerIndex].id;
+    const nextDrawerIndex = (gameState.roundNumber + playerList.length - 1) % playerList.length;
+    const nextDrawerId = playerList[nextDrawerIndex].id;
+
+    // New word each round (for now hardcoded, can randomize)
+    const word = getRandomProblem();
+    const roundDuration = 20;
+
+    // Update state
+    gameState.roundNumber++;
+    gameState.currentDrawer = nextDrawerId;
+    gameState.currentWord = word;
+    gameState.timeRemaining = roundDuration;
+    gameState.isRoundOver = false;
+    for (const userId in gameState.currentCorrects) {
+      gameState.currentCorrects[userId] = false; // Reset correct guesses for the next round
+    }
+    delete gameState.correctAnswer;
+
+    io.to(roomId).emit('gameState', gameState);
+    if (userSocketMap[nextDrawerId]) {
+      io.to(userSocketMap[nextDrawerId]).emit('isDrawingTurn', true);
+    }
+    if (userSocketMap[prevDrawerId] && (prevDrawerId != nextDrawerId)) {
+      io.to(userSocketMap[prevDrawerId]).emit('isDrawingTurn', false);
+    }
+
+    // Set timeout to end round after time
+    if (roundTimeouts[roomId]) clearTimeout(roundTimeouts[roomId]);
+    roundTimeouts[roomId] = setTimeout(() => {
+      console.log(`Room ${roomId}: Round ${gameState.roundNumber} time's up.`);
+      module.exports.endRound(roomId)
+    }, roundDuration * 1000);
+  },
+
+  endRound: (roomId) => {
+    if (!roomId) return;
+    const gameState = gameStates[roomId];
+    if (!gameState || gameState.isRoundOver) return;
+
+    // Clear the active round timer
+    if (roundTimeouts[roomId]) {
+        clearTimeout(roundTimeouts[roomId]);
+        delete roundTimeouts[roomId];
+    }
+
+    gameState.isRoundOver = true;
+    gameState.correctAnswer = gameState.currentWord;
+    io.to(roomId).emit('gameState', gameState);
+
+    // Game over logic
+    if (gameState.roundNumber >= gameState.totalRounds) {
+      console.log(`Game over in room ${roomId}.`);
+      roomManager.getRoomById(roomId).status = 'waiting'; // Update room status
+      // io.emit('rooms', rooms);
+      roomManager.roomUpdateBroadcast(); // Broadcast updated room list
+      io.to(roomId).emit('gameOver', gameState);
+      return;
+    }
+
+    // Schedule next round in 5 seconds
+    setTimeout(() => {
+      console.log(`Starting round ${gameState.roundNumber + 1} in room ${roomId}`);
+      module.exports.startRound(roomId);
+    }, 5000); // 5 seconds
   },
 
   handleCanvasUpdate: (socket, dataUrl) => {

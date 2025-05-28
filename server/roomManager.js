@@ -72,6 +72,9 @@ module.exports = {
     if (!room) {
       console.log(`Room ${roomId} not found.`);
       return;
+    } else if (room.currentPlayers >= room.maxPlayers || room.status !== "waiting") {
+      console.log(`Room ${roomId} player exceeded.`);
+      return;
     }
 
     if (socketRoomMap[socket.id] && socketRoomMap[socket.id] !== roomId) {
@@ -97,6 +100,9 @@ module.exports = {
 
     // New player needs current messages
     socket.emit('messages', messagesInRooms[roomId]);
+
+    // NOTE: 原本的 code 有送 gameState，但 joinRoom 的時候應該還不需要知道這件事情？
+    // socket.emit('gameState', gameStates[roomId]); 
 
     // 廣播玩家列表更新
     socket.emit('players', playersInRooms[roomId]); // Send current players in the room to the joining user
