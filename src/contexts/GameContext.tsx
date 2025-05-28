@@ -199,6 +199,21 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         newSocket.emit('botGuessed', { predictionId, botId, guess });
       });
 
+      newSocket.on('llmResponse', (data: string) => {
+        console.log('Received LLM response:', data);
+        // Handle the LLM response here, e.g., update messages or game state
+        // const newMessage: ChatMessage = {
+        //   id: `msg-${Date.now()}`,
+        //   userId: 'llm-bot', // Use a special ID for LLM responses
+        //   userName: 'LLM Bot',
+        //   content: data,
+        //   timestamp: Date.now(),
+        //   isGuess: false,
+        //   isCorrectGuess: false
+        // };
+        // setMessages(prev => [...prev, newMessage]);
+      });
+
 
       // set socketRef
       socketRef.current = newSocket;

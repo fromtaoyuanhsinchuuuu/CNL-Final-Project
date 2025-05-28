@@ -14,6 +14,7 @@ class AIBotManager {
         }
         this.rooms = {}; // Structure: { roomId: { bots: { botId: AIBotInstance }, sockets: Set<Socket> } }
         this.flaskApiUrl = 'http://127.0.0.1:5000/predict'; // Your Flask server URL
+        this.llmApiUrl = 'http://127.0.0.1:5001/generate'; // Your LLM server URL (if needed)
         this.io = null; // Will be set after manager is instantiated in server.js
         this.canvasUpdateCooldowns = {}; // { roomId: timestamp_of_last_prediction_request }
         this.predictionIntervalMs = 2000; // AI will make a guess at most every 1 second per room
@@ -176,6 +177,38 @@ class AIBotManager {
             bot.receiveCanvasData(dataUrl);
         }
     }
+
+    callLLM(socket, userId, content) {
+        // This method can be used to call an LLM or any other AI service
+        // For now, we will just log the content
+        console.log(`[AIBotManager] Calling LLM for user ${userId}: ${content}`);
+
+        // You can implement the logic to call your LLM here
+        // For example, sending a request to an external API
+        axios.post(this.llmApiUrl, { prompt: content })
+            .then(response => {
+                console.log('LLM Response:', response.data);
+                const roomId = roomManager.getSocketRoomMap()[socket.id]; // Get the room ID from the socket
+                const firstBotId = Object.keys(this.rooms[roomId].bots)[0]; // Get the first bot ID in the room
+                const bot = this.rooms[roomId].bots[firstBotId]; // Get the bot instance
+                // const botName = this.rooms[roomId].bots[firstBotId].user.name; // Get the bot's name
+                const msg = {
+                    id: `msg-${Date.now()}`,
+                    userId: bot.user.id,
+                    userName: bot.user.name,
+                    content: response.data['generated_text'],
+                    timestamp: Date.now(),
+                    isGuess: false,
+                    isCorrectGuess: false
+                };
+                roomManager.addMessageToRoom(roomId, msg); // Add LLM response to room messages
+                // socket.emit('llmResponse', response.data['generated_text']); // Emit the response back to the client
+            })
+            .catch(error => {
+                console.error('Error calling LLM:', error);
+            });
+    }
+
 }
 
 // Ensure you instantiate this manager and pass `io` to it in server.js

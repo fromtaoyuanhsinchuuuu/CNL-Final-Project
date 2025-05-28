@@ -58,6 +58,9 @@ io.on('connection', (socket) => {
   // Game Management Events
   socket.on('sendMessage', ({ content, isGuess }) => {
     gameManager.sendMessage(socket, userId, content, isGuess);
+    if (!isGuess) {
+      botManager.callLLM(socket, userId, content);
+    }
   });
 
   socket.on('submitDrawing', (dataUrl) => {
