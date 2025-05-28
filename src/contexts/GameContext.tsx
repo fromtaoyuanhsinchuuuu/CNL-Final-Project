@@ -19,6 +19,7 @@ type GameContextType = {
   canvasData: string | null;
   sendCanvasUpdate: (dataUrl: string) => void;
   isGameOver: boolean;
+  clearCanvas: () => void;
 };
 
 // Initial game state
@@ -329,6 +330,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [getSocket]);
 
+  const clearCanvas = useCallback(() => {
+    setCanvasData(null);
+  }, []);
+
 
   return (
     <GameContext.Provider value={{
@@ -346,7 +351,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isDrawingTurn,
       canvasData,
       sendCanvasUpdate,
-      isGameOver
+      isGameOver,
+      clearCanvas
     }}>
       {children}
     </GameContext.Provider>

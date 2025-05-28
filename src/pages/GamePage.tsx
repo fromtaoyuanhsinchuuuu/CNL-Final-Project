@@ -21,7 +21,8 @@ const GamePage: React.FC = () => {
     sendMessage,
     submitDrawing,
     isDrawingTurn,
-    startGame
+    startGame,
+    clearCanvas
   } = useGame();
   const { currentUser } = useUser();
   const { isGameOver } = useGame();
@@ -46,6 +47,7 @@ const GamePage: React.FC = () => {
     } else {
       setShowRoundEndModal(false);
       setIsBetweenRounds(false);
+      clearCanvas();
       console.log(`[GamePage] Round ${gameState.roundNumber} started/resumed. Hiding modal.`);
     }
   }, [gameState?.isRoundOver]);
