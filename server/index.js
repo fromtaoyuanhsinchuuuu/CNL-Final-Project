@@ -47,7 +47,12 @@ io.on('connection', (socket) => {
   });
 
   socket.on('leaveRoom', () => {
+    const roomId = roomManager.getSocketRoomMap()[socket.id];
     roomManager.leaveRoom(socket, userId);
+    if (roomManager.getPlayersInRoom(roomId).length === 0) {
+      console.log(`No players left in room ${roomId}. End Round.`);
+      botManager.removeAllBotsFromRoom(roomId);
+    }
   });
 
   // Game Management Events

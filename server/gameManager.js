@@ -222,10 +222,14 @@ module.exports = {
     }
 
     // Choose next drawer: round robin
-    const prevDrawerIndex = (gameState.roundNumber + playerList.length - 1) % playerList.length;
-    const prevDrawerId = playerList[prevDrawerIndex].id;
-    const nextDrawerIndex = (gameState.roundNumber + playerList.length) % playerList.length;
-    const nextDrawerId = playerList[nextDrawerIndex].id;
+    let prevDrawerIndex = (gameState.roundNumber + playerList.length - 1) % playerList.length;
+    let prevDrawerId = playerList[prevDrawerIndex].id;
+    let nextDrawerIndex = (gameState.roundNumber + playerList.length) % playerList.length;
+    let nextDrawerId = playerList[nextDrawerIndex].id;
+    while (nextDrawerId.startsWith('ai')) { // Skip AI bots
+      nextDrawerIndex = (nextDrawerIndex + 1) % playerList.length;
+      nextDrawerId = playerList[nextDrawerIndex].id;
+    }
 
     // New word each round (for now hardcoded, can randomize)
     const word = getRandomProblem();

@@ -167,6 +167,20 @@ module.exports = {
     if (room) {
       room.currentPlayers = Math.max(0, room.currentPlayers - 1);
       playersInRooms[roomIdToLeave] = (playersInRooms[roomIdToLeave] || []).filter(p => p.id !== userId);
+      playerNotAi = playersInRooms[roomIdToLeave].filter(p => !p.isAI); // Filter out AI players if any
+
+      if (playerNotAi.length === 0) {
+        // If no non-AI players left, reset room status to "waiting"
+        room.status = "waiting";
+        // kick all AI players if any
+        for (const player of playersInRooms[roomIdToLeave]) {
+          if (player.isAI) {
+            // Optionally, remove AI players from the room
+            console.log(`Removing AI player ${player.id} from room ${roomIdToLeave} as no human players left.`);
+            module.exports.removePlayerFromRoom(roomIdToLeave, player.id);
+          }
+        }
+      }
 
       if (room.currentPlayers === 0) {
         room.status = "waiting";
