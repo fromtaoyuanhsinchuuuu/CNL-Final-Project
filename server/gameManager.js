@@ -7,17 +7,18 @@ let roundTimeouts = {}; // Stores timeouts for each room to end rounds
 
 // We need access to roomManager's data
 const roomManager = require('./roomManager'); // Import roomManager here
+const botManager = require('./AIBotManager'); // Import AIBotManager for bot management
 
 const fs = require('fs');
 const path = require('path');
-const filePath = path.join(__dirname, 'data', 'categories.txt');
+const filePath = path.join(__dirname, 'data', 'categories-short.txt');
 if (!fs.existsSync(filePath)) {
   console.error(`File not found: ${filePath}`);
   return [];
 }
 const fileContent = fs.readFileSync(filePath, 'utf-8');
 const wordbank = fileContent.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-console.log(`Loaded ${wordbank.length} words from categories.txt`);
+console.log(`Loaded ${wordbank.length} words from categories-short.txt`);
 const getRandomProblem = () => {
   if (wordbank.length === 0) {
     console.error('No words available for selection.');
@@ -41,7 +42,19 @@ module.exports = {
   },
 
   sendMessage: (socket, userId, content, isGuess) => {
-    const currentRoomId = roomManager.getSocketRoomMap()[socket.id];
+    // Determine currentRoomId. If from AI bot, socket.id will be userId (or null)
+    // const currentRoomId = (socket && socket.id) ? roomManager.getSocketRoomMap()[socket.id] :
+    //                       roomManager.getRoomIdByPlayerId(userId); // New helper in roomManager
+
+    let currentRoomId;
+    if (userId && userId.startsWith('ai')) {
+      // NOTE: If the userId is an AI bot, the socket.id is actually the roomId
+      // See aiBotManager.js for how this is set up
+      console.log("[GameManager] AI bot detected, using socket.id as roomId");
+      currentRoomId = socket.id;
+    } else {
+      currentRoomId = roomManager.getSocketRoomMap()[socket.id];
+    }
     console.log(`Received sendMessage from ${socket.id} (user: ${userId}) in room ${currentRoomId}: ${content} (isGuess: ${isGuess})`);
     if (!currentRoomId) return;
 
@@ -82,7 +95,7 @@ module.exports = {
 
   submitDrawing: (socket, userId, dataUrl) => {
     const currentRoomId = roomManager.getSocketRoomMap()[socket.id];
-    console.log(`Received submitDrawing from ${socket.id} (user: ${userId}) in room ${currentRoomId}: ${dataUrl.substring(0, 20)}...`);
+    // console.log(`Received submitDrawing from ${socket.id} (user: ${userId}) in room ${currentRoomId}: ${dataUrl.substring(0, 20)}...`);
     if (currentRoomId) {
       socket.to(currentRoomId).emit('drawing', { userId, dataUrl });
     }
@@ -113,7 +126,7 @@ module.exports = {
       currentWord: '',
       timeRemaining: 120,
       roundNumber: 0,
-      totalRounds: 2,
+      totalRounds: 3,
       scores,
       currentCorrects,
       isRoundOver: false,
@@ -129,6 +142,9 @@ module.exports = {
 
     io.to(currentRoomId).emit('gameState', gameStates[currentRoomId]);
 
+    botManager.addRoom(currentRoomId); // Ensure the room is added to botManager
+    botManager.startAllBotsInRoom(currentRoomId); // Start all bots in the room if any
+
     // Notify the current drawer
     module.exports.startRound(currentRoomId);
   },
@@ -141,8 +157,6 @@ module.exports = {
     if (gameState.roundNumber > gameState.totalRounds) {
       // Game over
       roomManager.getRoomById(roomId).status = 'waiting';
-      // TODO: Handle broadcast through roomManager
-      // io.emit('rooms', rooms);
       roomManager.roomUpdateBroadcast(); // Broadcast updated room list
       io.to(roomId).emit('gameOver', gameState);
       return;

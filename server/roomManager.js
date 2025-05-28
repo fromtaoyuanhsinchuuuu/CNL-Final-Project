@@ -3,8 +3,8 @@ const { v4: uuidv4 } = require('uuid'); // To generate unique IDs, you might nee
 
 let io; // Socket.IO instance
 let rooms = [
-  { id: '1', name: 'Fun Room A', currentPlayers: 0, maxPlayers: 8, status: 'waiting' },
-  { id: '2', name: 'Serious Players Only B', currentPlayers: 0, maxPlayers: 8, status: 'waiting' },
+  // { id: '1', name: 'Fun Room A', currentPlayers: 0, maxPlayers: 8, status: 'waiting' },
+  // { id: '2', name: 'Serious Players Only B', currentPlayers: 0, maxPlayers: 8, status: 'waiting' },
 ];
 let playersInRooms = {}; // Stores players for each room: { roomId: [{id, name, isOnline, score}] }
 let messagesInRooms = {}; // Stores messages for each room: { roomId: [{...messageData}] }
@@ -17,8 +17,8 @@ let socketRoomMap = {}; // { socket.id: roomId }
 module.exports = {
   init: (socketIoInstance, globalAllPlayers, globalUserSocketMap) => {
     io = socketIoInstance;
-    allPlayers = globalAllPlayers;
-    userSocketMap = globalUserSocketMap;
+    // allPlayers = globalAllPlayers;
+    // userSocketMap = globalUserSocketMap;
     console.log('RoomManager initialized.');
   },
 
@@ -71,6 +71,27 @@ module.exports = {
     console.log(`Room created: ${newRoom.name} (${newRoom.id})`);
   },
 
+  addPlayerToRoom: (roomId, player) => {
+    if (!playersInRooms[roomId]) {
+      playersInRooms[roomId] = [];
+    }
+    // Check if player already exists in the room to prevent duplicates
+    if (!playersInRooms[roomId].some(p => p.id === player.id)) {
+        playersInRooms[roomId].push(player); // Add the player object reference
+        // playerRoomMap[player.id] = roomId; // Track player's room
+        const room = rooms.find(r => r.id === roomId);
+        if (room) {
+          room.currentPlayers++;
+        } else {
+          null.to();
+        }
+        io.to(roomId).emit('players', playersInRooms[roomId]);
+        io.emit('rooms', rooms); // Update room count for all clients
+        console.log(`Player ${player.name} (${player.id}) added to room ${roomId}. Current players:`, playersInRooms[roomId].length);
+    }
+  },
+
+
   joinRoom: (socket, userId, roomId) => {
     console.log(`Received joinRoom from ${socket.id} (user: ${userId}): ${roomId}`);
     const room = rooms.find(r => r.id === roomId);
@@ -89,25 +110,24 @@ module.exports = {
     }
 
     socketRoomMap[socket.id] = roomId; // Update the map for this socket
-    room.currentPlayers++;
 
-    if (!playersInRooms[roomId]) playersInRooms[roomId] = [];
     const newUser = { id: userId, name: userId, isOnline: true, score: 0 };
-    playersInRooms[roomId].push(newUser);
+
+    module.exports.addPlayerToRoom(roomId, newUser); // Add the user to the room's player list
+    // room.currentPlayers++;
+    // if (!playersInRooms[roomId]) playersInRooms[roomId] = [];
+    // playersInRooms[roomId].push(newUser);
+
+    // console.log(`User ${userId} joined room ${roomId}. Current players: `, playersInRooms[roomId]);
+    // io.emit('rooms', rooms); // Broadcast room list update (player count)
+    // io.to(roomId).emit('players', playersInRooms[roomId]); // Broadcast updated player list to room
+
 
     if (!messagesInRooms[roomId]) messagesInRooms[roomId] = [];
-
-    console.log(`User ${userId} joined room ${roomId}. Current players: `, playersInRooms[roomId]);
-
-    io.emit('rooms', rooms); // Broadcast room list update (player count)
-    io.to(roomId).emit('players', playersInRooms[roomId]); // Broadcast updated player list to room
     socket.join(roomId);
 
     // New player needs current messages
     socket.emit('messages', messagesInRooms[roomId]);
-
-    // NOTE: 原本的 code 有送 gameState，但 joinRoom 的時候應該還不需要知道這件事情？
-    // socket.emit('gameState', gameStates[roomId]); 
 
     // 廣播玩家列表更新
     socket.emit('players', playersInRooms[roomId]); // Send current players in the room to the joining user

@@ -6,6 +6,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const roomManager = require('./roomManager');
 const gameManager = require('./gameManager');
+const botManager = require('./AIBotManager');
 
 const app = express();
 const server = http.createServer(app);
@@ -15,15 +16,15 @@ const io = new Server(server, { cors: { origin: '*' } });
 let userIdCounter = 1;
 let allPlayers = [];
 let userSocketMap = {};
-let roundTimeouts = {};
 
 // Initialize managers with the io instance for broadcasting
 roomManager.init(io, allPlayers, userSocketMap);
 gameManager.init(io, allPlayers, userSocketMap);
+botManager.setSocketIO(io);
+botManager.setGlobalPlayerStates(allPlayers, userSocketMap);
 
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
-  let currentRoomId = null; // This will now be managed per socket in roomManager
   let userId = `user-${userIdCounter}`;
   userSocketMap[userId] = socket.id;
   allPlayers.push({ id: userId, name: `User-${userIdCounter}`, isOnline: true, score: 0 });
@@ -68,7 +69,15 @@ io.on('connection', (socket) => {
 
   socket.on('canvasUpdate', (dataUrl) => {
     gameManager.handleCanvasUpdate(socket, dataUrl);
+    const currentRoomId = roomManager.getSocketRoomMap()[socket.id];
+    // console.log("Received canvasUpdate from", socket.id, "for user", userId, "in room", currentRoomId);
+    botManager.processCanvasUpdate(currentRoomId, dataUrl);
   });
+
+  // socket.on('aiGuess', (dataUrl) => {
+  //   console.log(`Received aiGuess from ${socket.id} for user ${userId}: ${dataUrl.substring(0, 20)}...`);
+  //   botManager.processCanvasUpdate(socket, dataUrl);
+  // });
 
   // Disconnect handling
   socket.on('disconnect', () => {
