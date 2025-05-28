@@ -216,7 +216,7 @@ module.exports = {
       // Game over
       roomManager.getRoomById(roomId).status = 'waiting';
       roomManager.roomUpdateBroadcast(); // Broadcast updated room list
-      botManager.removeAllBotsFromRoom(roomId); // Stop all bots in the room
+      // botManager.removeAllBotsFromRoom(roomId); // Stop all bots in the room
       io.to(roomId).emit('gameOver', gameState);
       return;
     }
@@ -283,7 +283,7 @@ module.exports = {
       roomManager.getRoomById(roomId).status = 'waiting'; // Update room status
       // io.emit('rooms', rooms);
       roomManager.roomUpdateBroadcast(); // Broadcast updated room list
-      botManager.removeAllBotsFromRoom(roomId); // Stop all bots in the room
+      // botManager.removeAllBotsFromRoom(roomId); // Stop all bots in the room
       io.to(roomId).emit('gameOver', gameState);
       return;
     }
